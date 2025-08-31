@@ -28,7 +28,7 @@ func EnsureUser(ctx context.Context, db *sql.DB, pubkey string) (int64, error) {
 		return id, nil
 	case sql.ErrNoRows:
 		// insert
-		res, err := tx.ExecContext(ctx, `INSERT INTO users (public_key, is_admin, created_at, updated_at) VALUES (?, false, ?, ?)`, pubkey, time.Now().Unix(), time.Now().Unix())
+		res, err := tx.ExecContext(ctx, `INSERT INTO users (public_key, type, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`, pubkey, UserTypeEndUser, 1, time.Now().Unix(), time.Now().Unix())
 		if err != nil {
 			return 0, err
 		}
@@ -107,7 +107,7 @@ func DeleteExpiredSessions(ctx context.Context, db *sql.DB) (int64, error) {
 
 // GetUserByPubKey retrieves a user id by public key. Returns sql.ErrNoRows if not found.
 func GetUserByPubKey(ctx context.Context, db *sql.DB, pubkey string) (int64, error) {
-	row := db.QueryRowContext(ctx, `SELECT id FROM users WHERE public_key = ? LIMIT 1`, pubkey)
+	row := db.QueryRowContext(ctx, `SELECT id FROM users WHERE public_key = ? AND active = 1 LIMIT 1`, pubkey)
 	var id int64
 	if err := row.Scan(&id); err != nil {
 		return 0, err

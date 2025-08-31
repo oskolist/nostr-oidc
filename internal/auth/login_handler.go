@@ -40,7 +40,6 @@ func renderLoginError(ctx context.Context, w http.ResponseWriter, msg string) {
 	// Prefer returning an OOB fragment to update the stable snackbar via hx-swap-oob
 	// Use helper to render snackbar and target #htmx-snackbar
 	_ = ui.RenderSnackbar(ctx, w, msg, "error", "3s")
-	return
 }
 
 // extractChallengeFromEvent returns the challenge string present either in the event content

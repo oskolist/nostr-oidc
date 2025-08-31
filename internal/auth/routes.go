@@ -44,7 +44,7 @@ func RegisterRoutes(r chi.Router, cfg *config.Config, db *sql.DB) {
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		// render dashboard with admin flag
-		if err := pages.DashboardPage(user.PublicKey, user.IsAdmin).Render(r.Context(), w); err != nil {
+		if err := pages.DashboardPage(user.PublicKey, user.IsAdmin()).Render(r.Context(), w); err != nil {
 			http.Error(w, "failed to render", http.StatusInternalServerError)
 		}
 	})

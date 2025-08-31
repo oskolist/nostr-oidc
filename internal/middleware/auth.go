@@ -58,11 +58,11 @@ func AuthMiddleware(cfg *config.Config, db *sql.DB) func(next http.Handler) http
 				return
 			}
 
-			// load user
-			row := db.QueryRowContext(r.Context(), `SELECT id, public_key, is_admin, created_at, updated_at FROM users WHERE id = ?`, sess.UserID)
+			// load user (include active)
+			row := db.QueryRowContext(r.Context(), `SELECT id, public_key, type, active, created_at, updated_at FROM users WHERE id = ?`, sess.UserID)
 			var u models.User
 			var createdAtUnix, updatedAtUnix int64
-			if err := row.Scan(&u.ID, &u.PublicKey, &u.IsAdmin, &createdAtUnix, &updatedAtUnix); err != nil {
+			if err := row.Scan(&u.ID, &u.PublicKey, &u.Type, &u.Active, &createdAtUnix, &updatedAtUnix); err != nil {
 				accept := r.Header.Get("Accept")
 				if strings.Contains(accept, "text/html") {
 					http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -73,6 +73,17 @@ func AuthMiddleware(cfg *config.Config, db *sql.DB) func(next http.Handler) http
 			}
 			u.CreatedAt = time.Unix(createdAtUnix, 0)
 			u.UpdatedAt = time.Unix(updatedAtUnix, 0)
+
+			// deny access for inactive users
+			if !u.Active {
+				accept := r.Header.Get("Accept")
+				if strings.Contains(accept, "text/html") {
+					http.Redirect(w, r, "/login", http.StatusSeeOther)
+					return
+				}
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
 
 			// attach user to context
 			ctx := context.WithValue(r.Context(), ContextUserKey, &u)

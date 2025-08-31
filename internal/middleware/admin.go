@@ -20,7 +20,7 @@ func AdminOnly() func(next http.Handler) http.Handler {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
-			if !user.IsAdmin {
+			if !user.IsAdmin() {
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}

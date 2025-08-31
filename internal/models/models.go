@@ -2,12 +2,24 @@ package models
 
 import "time"
 
+const (
+	UserTypeAdmin         = "ADMIN"
+	UserTypeRelayingParty = "RELAYING_PARTY"
+	UserTypeEndUser       = "END_USER"
+)
+
 type User struct {
 	ID        int64     `json:"id"`
 	PublicKey string    `json:"public_key"`
-	IsAdmin   bool      `json:"is_admin"`
+	Type      string    `json:"type"`
+	Active    bool      `json:"active"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// IsAdmin reports whether the user has ADMIN type.
+func (u *User) IsAdmin() bool {
+	return u.Type == UserTypeAdmin
 }
 
 type Session struct {
