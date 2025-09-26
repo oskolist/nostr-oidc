@@ -11,11 +11,14 @@ import (
 
 type storageDB struct {
 	db *sql.DB
-
 }
 
 // AddClient inserts a new client into the database
 func (s *storageDB) AddClient(tx *sql.Tx, client *Client) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	// Marshal slice fields to JSON
 	redirectURIsJSON, err := json.Marshal(client.redirectURIs)
 	if err != nil {
@@ -62,6 +65,10 @@ func (s *storageDB) AddClient(tx *sql.Tx, client *Client) error {
 
 // SearchClientByID retrieves a client by ID
 func (s *storageDB) SearchClientByID(tx *sql.Tx, id string) (*Client, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	query := `
 		SELECT id, secret, redirect_uris, application_type, auth_method, response_types,
 			   grant_types, access_token_type, dev_mode, id_token_userinfo_claims_assertion,
@@ -114,6 +121,10 @@ func (s *storageDB) SearchClientByID(tx *sql.Tx, id string) (*Client, error) {
 
 // DeleteClient removes a client by ID
 func (s *storageDB) DeleteClient(tx *sql.Tx, id string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	query := `DELETE FROM clients WHERE id = ?`
 
 	stmt, err := tx.Prepare(query)
@@ -128,6 +139,10 @@ func (s *storageDB) DeleteClient(tx *sql.Tx, id string) error {
 
 // AddUser inserts a new user into the database
 func (s *storageDB) AddUser(tx *sql.Tx, user *User) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	// Serialize public key to bytes
 	var npubBytes []byte
 	if user.Npub != nil {
@@ -148,6 +163,10 @@ func (s *storageDB) AddUser(tx *sql.Tx, user *User) error {
 
 // SearchUserByID retrieves a user by ID
 func (s *storageDB) SearchUserByID(tx *sql.Tx, id string) (*User, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	query := `SELECT id, npub, preferred_language, is_admin FROM users WHERE id = ?`
 
 	stmt, err := tx.Prepare(query)
@@ -165,12 +184,9 @@ func (s *storageDB) SearchUserByID(tx *sql.Tx, id string) (*User, error) {
 		return nil, err
 	}
 
-	// Deserialize public key
-	if len(npubBytes) > 0 {
-		user.Npub, err = btcec.ParsePubKey(npubBytes)
-		if err != nil {
-			return nil, err
-		}
+	user.Npub, err = btcec.ParsePubKey(npubBytes)
+	if err != nil {
+		return nil, err
 	}
 
 	user.PreferredLanguage, err = language.Parse(preferredLangStr)
@@ -183,6 +199,10 @@ func (s *storageDB) SearchUserByID(tx *sql.Tx, id string) (*User, error) {
 
 // DeleteUser removes a user by ID
 func (s *storageDB) DeleteUser(tx *sql.Tx, id string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	query := `DELETE FROM users WHERE id = ?`
 
 	stmt, err := tx.Prepare(query)
@@ -196,6 +216,13 @@ func (s *storageDB) DeleteUser(tx *sql.Tx, id string) error {
 
 // SearchUserByNpub retrieves a user by their public key
 func (s *storageDB) SearchUserByNpub(tx *sql.Tx, npub *btcec.PublicKey) (*User, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+	if npub == nil {
+		panic("npub cannot be nil")
+	}
+
 	// Serialize public key to bytes for database lookup
 	npubBytes := npub.SerializeCompressed()
 
@@ -232,6 +259,10 @@ func (s *storageDB) SearchUserByNpub(tx *sql.Tx, npub *btcec.PublicKey) (*User, 
 
 // AddToken inserts a new token into the database
 func (s *storageDB) AddToken(tx *sql.Tx, token *Token) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	// Marshal slice fields to JSON
 	audienceJSON, err := json.Marshal(token.Audience)
 	if err != nil {
@@ -261,6 +292,10 @@ func (s *storageDB) AddToken(tx *sql.Tx, token *Token) error {
 
 // SearchTokenByID retrieves a token by ID
 func (s *storageDB) SearchTokenByID(tx *sql.Tx, id string) (*Token, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	query := `SELECT id, application_id, subject, refresh_token_id, audience, expiration, scopes FROM tokens WHERE id = ?`
 
 	stmt, err := tx.Prepare(query)
@@ -293,6 +328,10 @@ func (s *storageDB) SearchTokenByID(tx *sql.Tx, id string) (*Token, error) {
 
 // DeleteToken removes a token by ID
 func (s *storageDB) DeleteToken(tx *sql.Tx, id string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	query := `DELETE FROM tokens WHERE id = ?`
 
 	stmt, err := tx.Prepare(query)
@@ -307,6 +346,10 @@ func (s *storageDB) DeleteToken(tx *sql.Tx, id string) error {
 
 // AddRefreshToken inserts a new refresh token into the database
 func (s *storageDB) AddRefreshToken(tx *sql.Tx, refreshToken *RefreshToken) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	// Marshal slice fields to JSON
 	amrJSON, err := json.Marshal(refreshToken.AMR)
 	if err != nil {
@@ -342,6 +385,10 @@ func (s *storageDB) AddRefreshToken(tx *sql.Tx, refreshToken *RefreshToken) erro
 
 // SearchRefreshTokenByID retrieves a refresh token by ID
 func (s *storageDB) SearchRefreshTokenByID(tx *sql.Tx, id string) (*RefreshToken, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	query := `
 		SELECT id, token, auth_time, amr, audience, user_id, application_id, expiration, scopes, access_token
 		FROM refresh_tokens WHERE id = ?`
@@ -380,6 +427,10 @@ func (s *storageDB) SearchRefreshTokenByID(tx *sql.Tx, id string) (*RefreshToken
 
 // DeleteRefreshToken removes a refresh token by ID
 func (s *storageDB) DeleteRefreshToken(tx *sql.Tx, id string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
 	query := `DELETE FROM refresh_tokens WHERE id = ?`
 
 	stmt, err := tx.Prepare(query)
