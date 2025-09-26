@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"time"
@@ -11,6 +12,151 @@ import (
 
 type storageDB struct {
 	db *sql.DB
+}
+
+// BeginTx starts a new database transaction
+func (s *storageDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
+	if s.db == nil {
+		panic("db cannot be nil")
+	}
+	return s.db.BeginTx(ctx, opts)
+}
+
+// AddAuthRequest inserts a new auth request into the database
+func (s *storageDB) AddAuthRequest(tx *sql.Tx, authReq *AuthRequest) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	// Marshal slice fields to JSON
+	promptJSON, err := json.Marshal(authReq.Prompt)
+	if err != nil {
+		return err
+	}
+	uiLocalesJSON, err := json.Marshal(authReq.UiLocales)
+	if err != nil {
+		return err
+	}
+	scopesJSON, err := json.Marshal(authReq.Scopes)
+	if err != nil {
+		return err
+	}
+
+	// Handle MaxAuthAge (pointer to duration)
+	var maxAuthAgeStr sql.NullString
+	if authReq.MaxAuthAge != nil {
+		maxAuthAgeStr.String = authReq.MaxAuthAge.String()
+		maxAuthAgeStr.Valid = true
+	}
+
+	// Handle CodeChallenge (pointer)
+	var challenge, method sql.NullString
+	if authReq.CodeChallenge != nil {
+		challenge.String = authReq.CodeChallenge.Challenge
+		challenge.Valid = true
+		method.String = authReq.CodeChallenge.Method
+		method.Valid = true
+	}
+
+	query := `
+		INSERT INTO auth_requests (
+			id, creation_date, application_id, callback_uri, transfer_state, prompt,
+			ui_locales, login_hint, max_auth_age, user_id, scopes, response_type,
+			response_mode, nonce, code_challenge_challenge, code_challenge_method
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(
+		authReq.ID, authReq.CreationDate, authReq.ApplicationID, authReq.CallbackURI, authReq.TransferState, string(promptJSON),
+		string(uiLocalesJSON), authReq.LoginHint, maxAuthAgeStr, authReq.UserID, string(scopesJSON), string(authReq.ResponseType),
+		string(authReq.ResponseMode), authReq.Nonce, challenge, method,
+	)
+	return err
+}
+
+// SearchAuthRequestByID retrieves an auth request by ID
+func (s *storageDB) SearchAuthRequestByID(tx *sql.Tx, id string) (*AuthRequest, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `
+		SELECT id, creation_date, application_id, callback_uri, transfer_state, prompt,
+			   ui_locales, login_hint, max_auth_age, user_id, scopes, response_type,
+			   response_mode, nonce, code_challenge_challenge, code_challenge_method
+		FROM auth_requests WHERE id = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	var authReq AuthRequest
+	var maxAuthAgeStr, challenge, method sql.NullString
+	var promptJSON, uiLocalesJSON, scopesJSON []byte
+
+	err = stmt.QueryRow(id).Scan(
+		&authReq.ID, &authReq.CreationDate, &authReq.ApplicationID, &authReq.CallbackURI, &authReq.TransferState, &promptJSON,
+		&uiLocalesJSON, &authReq.LoginHint, &maxAuthAgeStr, &authReq.UserID, &scopesJSON, 
+		(*string)(&authReq.ResponseType), (*string)(&authReq.ResponseMode), &authReq.Nonce, &challenge, &method,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal JSON fields
+	if err := json.Unmarshal(promptJSON, &authReq.Prompt); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(uiLocalesJSON, &authReq.UiLocales); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(scopesJSON, &authReq.Scopes); err != nil {
+		return nil, err
+	}
+
+	// Handle MaxAuthAge
+	if maxAuthAgeStr.Valid {
+		dur, err := time.ParseDuration(maxAuthAgeStr.String)
+		if err != nil {
+			return nil, err
+		}
+		authReq.MaxAuthAge = &dur
+	}
+
+	// Handle CodeChallenge
+	if challenge.Valid || method.Valid {
+		authReq.CodeChallenge = &OIDCCodeChallenge{
+			Challenge: challenge.String,
+			Method:    method.String,
+		}
+	}
+
+	return &authReq, nil
+}
+
+// DeleteAuthRequest removes an auth request by ID
+func (s *storageDB) DeleteAuthRequest(tx *sql.Tx, id string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `DELETE FROM auth_requests WHERE id = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(id)
+	return err
 }
 
 // AddClient inserts a new client into the database
@@ -82,8 +228,8 @@ func (s *storageDB) SearchClientByID(tx *sql.Tx, id string) (*Client, error) {
 	defer stmt.Close()
 
 	var client Client
-	var redirectURIsJSON, responseTypesJSON, grantTypesJSON, postLogoutRedirectURIsJSON, redirectURIsGlobsJSON []byte
 	var clockSkewStr string
+	var redirectURIsJSON, responseTypesJSON, grantTypesJSON, postLogoutRedirectURIsJSON, redirectURIsGlobsJSON []byte
 
 	err = stmt.QueryRow(id).Scan(
 		&client.id, &client.secret, &redirectURIsJSON, &client.applicationType, &client.authMethod,
@@ -184,9 +330,12 @@ func (s *storageDB) SearchUserByID(tx *sql.Tx, id string) (*User, error) {
 		return nil, err
 	}
 
-	user.Npub, err = btcec.ParsePubKey(npubBytes)
-	if err != nil {
-		return nil, err
+	// Deserialize public key
+	if len(npubBytes) > 0 {
+		user.Npub, err = btcec.ParsePubKey(npubBytes)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	user.PreferredLanguage, err = language.Parse(preferredLangStr)
@@ -195,23 +344,6 @@ func (s *storageDB) SearchUserByID(tx *sql.Tx, id string) (*User, error) {
 	}
 
 	return &user, nil
-}
-
-// DeleteUser removes a user by ID
-func (s *storageDB) DeleteUser(tx *sql.Tx, id string) error {
-	if tx == nil {
-		panic("tx cannot be nil")
-	}
-
-	query := `DELETE FROM users WHERE id = ?`
-
-	stmt, err := tx.Prepare(query)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	return err
 }
 
 // SearchUserByNpub retrieves a user by their public key
@@ -243,7 +375,7 @@ func (s *storageDB) SearchUserByNpub(tx *sql.Tx, npub *btcec.PublicKey) (*User, 
 		return nil, err
 	}
 
-	// Deserialize public key (should match the input, but included for consistency)
+	// Deserialize public key (should match the input)
 	user.Npub, err = btcec.ParsePubKey(dbNpubBytes)
 	if err != nil {
 		return nil, err
@@ -255,6 +387,24 @@ func (s *storageDB) SearchUserByNpub(tx *sql.Tx, npub *btcec.PublicKey) (*User, 
 	}
 
 	return &user, nil
+}
+
+// DeleteUser removes a user by ID
+func (s *storageDB) DeleteUser(tx *sql.Tx, id string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `DELETE FROM users WHERE id = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(id)
+	return err
 }
 
 // AddToken inserts a new token into the database
