@@ -22,7 +22,7 @@ import (
 // for simplicity this example keeps everything in-memory
 type Storage struct {
 	signingKey signingKey
-	db         *sql.DB
+	db         storageDB
 }
 
 func NewStorage(db *sql.DB) (Storage, error) {
@@ -34,7 +34,7 @@ func NewStorage(db *sql.DB) (Storage, error) {
 		return Storage{}, fmt.Errorf("ecdsa.GenerateKey(elliptic.P256(), rand.Reader). %w", err)
 	}
 	return Storage{
-		db: db,
+		db: storageDB{db: db},
 		signingKey: signingKey{
 			id:        uuid.NewString(),
 			algorithm: jose.ES256,
