@@ -33,7 +33,7 @@ var static embed.FS
 var counter atomic.Int64
 
 // Use one of the pre-made clients in storage/clients.go or register a new one.
-func SetupServer(storage Storage, logger *slog.Logger, extraOptions ...op.Option) chi.Router {
+func SetupServer(storage Storage,  extraOptions ...op.Option) chi.Router {
 	// the OpenID Provider requires a 32-byte key for (token) encryption
 	// be sure to create a proper crypto random key and manage it securely!
 	key := sha256.Sum256([]byte("test"))
@@ -48,7 +48,6 @@ func SetupServer(storage Storage, logger *slog.Logger, extraOptions ...op.Option
 
 	router := chi.NewRouter()
 	router.Use(logging.Middleware(
-		logging.WithLogger(logger),
 		logging.WithIDFunc(func() slog.Attr {
 			return slog.Int64("id", counter.Add(1))
 		}),
@@ -70,7 +69,6 @@ func SetupServer(storage Storage, logger *slog.Logger, extraOptions ...op.Option
 			}, nil
 		},
 		key,
-		logger,
 		extraOptions...,
 	)
 	if err != nil {
@@ -109,7 +107,6 @@ func newOP(
 	storage op.Storage,
 	issuer func(insecure bool) (op.IssuerFromRequest, error),
 	key [32]byte, // encryption key
-	logger *slog.Logger,
 	extraOptions ...op.Option,
 ) (op.OpenIDProvider, error) {
 	config := &op.Config{
@@ -151,7 +148,7 @@ func newOP(
 			// as an example on how to customize an endpoint this will change the authorization_endpoint from /authorize to /auth
 			op.WithCustomAuthEndpoint(op.NewEndpoint("auth")),
 			// Pass our logger to the OP
-			op.WithLogger(logger.WithGroup("op")),
+			// op.WithLogger(logger.WithGroup("op")),
 		}, extraOptions...)...,
 	)
 	if err != nil {

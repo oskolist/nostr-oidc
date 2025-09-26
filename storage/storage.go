@@ -10,6 +10,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/go-jose/go-jose/v4"
 	"github.com/google/uuid"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
@@ -461,7 +462,8 @@ func (s *Storage) Health(ctx context.Context) error {
 	panic("Health. not yet implemented")
 	// return nil
 }
-func (s *Storage) CheckUserNpub(ctx context.Context) error {
+func (s *Storage) CheckUserNpub(id string, publicKey *btcec.PublicKey) error {
+
 	panic("CheckUserNpub is not yet implemented")
 	// return nil
 }
