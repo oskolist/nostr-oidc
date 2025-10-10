@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
+	"golang.org/x/text/language"
 )
 
 // storage implements the op.Storage interface
@@ -682,10 +683,71 @@ func (s *Storage) AuthorizeClientIDSecret(ctx context.Context, clientID, clientS
 }
 
 // SetUserinfoFromScopes implements the op.Storage interface.
-// Provide an empty implementation and use SetUserinfoFromRequest instead.
+// It populates the userinfo based on the requested scopes
 func (s *Storage) SetUserinfoFromScopes(ctx context.Context, userinfo *oidc.UserInfo, userID, clientID string, scopes []string) error {
-	// Simply return nil for now - this is a placeholder for the more complex implementation
-	// In a real implementation, you would fetch user data and populate the userinfo based on scopes
+	// Start a transaction to fetch user data
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	// Fetch user from database
+	user, err := s.db.SearchUserByID(tx, userID)
+	if err != nil {
+		return fmt.Errorf("s.db.SearchUserByID(tx, %s). %+v", userID, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %+v", err)
+	}
+
+	// Set the subject (always included)
+	userinfo.Subject = user.ID
+
+	// Process each requested scope
+	for _, scope := range scopes {
+		switch scope {
+		case oidc.ScopeOpenID:
+			// Subject is already set above
+
+		case oidc.ScopeProfile:
+			// Set profile information
+			// Set locale from user's preferred language
+			if user.PreferredLanguage != language.Und {
+				locale := oidc.NewLocale(user.PreferredLanguage)
+				userinfo.Locale = locale
+			}
+
+			// If we have npub, we can use it as preferred_username
+			if user.Npub != nil {
+				// Convert public key to hex for npub encoding
+				pubkeyHex := fmt.Sprintf("%x", user.Npub.SerializeCompressed()[1:]) // Skip the first byte (02 or 03)
+				userinfo.PreferredUsername = pubkeyHex
+			}
+
+		case CustomScope:
+			// Add custom claim
+			userinfo.AppendClaims(CustomClaim, "custom_claim_value")
+
+		// Handle other standard scopes if needed
+		case oidc.ScopeEmail:
+			// Email scope - not implemented in this user model
+
+		case oidc.ScopePhone:
+			// Phone scope - not implemented in this user model
+
+		case oidc.ScopeAddress:
+			// Address scope - not implemented in this user model
+		}
+	}
+
+	// Add admin status as a custom claim if needed
+	if user.IsAdmin {
+		userinfo.AppendClaims("admin", true)
+	}
+
 	return nil
 }
 
@@ -693,18 +755,86 @@ func (s *Storage) SetUserinfoFromScopes(ctx context.Context, userinfo *oidc.User
 // next major release, it will be required for op.Storage.
 // It will be called for the creation of an id_token, so we'll just pass it to the private function without any further check
 func (s *Storage) SetUserinfoFromRequest(ctx context.Context, userinfo *oidc.UserInfo, token op.IDTokenRequest, scopes []string) error {
-	// In a simplified implementation, we can simply return nil
-	// A more detailed implementation would retrieve userinfo from the database
-	// based on the token and scopes provided
-	return nil
+	// Get the subject (user ID) from the token request
+	userID := token.GetSubject()
+	clientID := token.GetClientID()
+
+	// Use SetUserinfoFromScopes to populate userinfo
+	return s.SetUserinfoFromScopes(ctx, userinfo, userID, clientID, scopes)
 }
 
 // SetUserinfoFromToken implements the op.Storage interface
 // it will be called for the userinfo endpoint, so we read the token and pass the information from that to the private function
 func (s *Storage) SetUserinfoFromToken(ctx context.Context, userinfo *oidc.UserInfo, tokenID, subject, origin string) error {
-	// In a simplified implementation, we can return nil
-	// A more detailed implementation would retrieve user info from the database
-	// based on the token, subject, and origin if needed
+	// Start a transaction to fetch user and token data
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	// Fetch user from database using the subject
+	user, err := s.db.SearchUserByID(tx, subject)
+	if err != nil {
+		return fmt.Errorf("s.db.SearchUserByID(tx, %s). %+v", subject, err)
+	}
+
+	// Fetch token to get scopes
+	token, err := s.db.SearchTokenByID(tx, tokenID)
+	if err != nil {
+		return fmt.Errorf("s.db.SearchTokenByID(tx, %s). %+v", tokenID, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %+v", err)
+	}
+
+	// Set the subject (always included)
+	userinfo.Subject = user.ID
+
+	// Process each scope from the token
+	for _, scope := range token.Scopes {
+		switch scope {
+		case oidc.ScopeOpenID:
+			// Subject is already set above
+
+		case oidc.ScopeProfile:
+			// Set profile information
+			// Set locale from user's preferred language
+			if user.PreferredLanguage != language.Und {
+				locale := oidc.NewLocale(user.PreferredLanguage)
+				userinfo.Locale = locale
+			}
+
+			// If we have npub, we can use it as preferred_username
+			if user.Npub != nil {
+				// Convert public key to hex for npub encoding
+				pubkeyHex := fmt.Sprintf("%x", user.Npub.SerializeCompressed()[1:]) // Skip the first byte (02 or 03)
+				userinfo.PreferredUsername = pubkeyHex
+			}
+
+		case CustomScope:
+			// Add custom claim
+			userinfo.AppendClaims(CustomClaim, "custom_claim_value")
+
+		// Handle other standard scopes if needed
+		case oidc.ScopeEmail:
+			// Email scope - not implemented in this user model
+
+		case oidc.ScopePhone:
+			// Phone scope - not implemented in this user model
+
+		case oidc.ScopeAddress:
+			// Address scope - not implemented in this user model
+		}
+	}
+
+	// Add admin status as a custom claim if needed
+	if user.IsAdmin {
+		userinfo.AppendClaims("admin", true)
+	}
+
 	return nil
 }
 
