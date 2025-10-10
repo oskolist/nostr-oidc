@@ -841,40 +841,186 @@ func (s *Storage) SetUserinfoFromToken(ctx context.Context, userinfo *oidc.UserI
 // SetIntrospectionFromToken implements the op.Storage interface
 // it will be called for the introspection endpoint, so we read the token and pass the information from that to the private function
 func (s *Storage) SetIntrospectionFromToken(ctx context.Context, introspection *oidc.IntrospectionResponse, tokenID, subject, clientID string) error {
-	// In a simplified implementation, we can return nil
-	// This would normally populate the introspection response with token information
+	// Start a transaction to fetch token data
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	// Fetch token from database
+	token, err := s.db.SearchTokenByID(tx, tokenID)
+	if err != nil {
+		return fmt.Errorf("s.db.SearchTokenByID(tx, %s). %+v", tokenID, err)
+	}
+
+	// Fetch user to get additional information
+	user, err := s.db.SearchUserByID(tx, subject)
+	if err != nil {
+		return fmt.Errorf("s.db.SearchUserByID(tx, %s). %+v", subject, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %+v", err)
+	}
+
+	// Populate introspection response
+	introspection.Active = time.Now().Before(token.Expiration)
+	introspection.Scope = token.Scopes
+	introspection.ClientID = token.ApplicationID
+	introspection.TokenType = oidc.BearerToken
+	introspection.Expiration = oidc.FromTime(token.Expiration)
+	introspection.Subject = token.Subject
+	introspection.Audience = token.Audience
+
+	// Add username from user data
+	if user.Npub != nil {
+		pubkeyHex := fmt.Sprintf("%x", user.Npub.SerializeCompressed()[1:])
+		introspection.Username = pubkeyHex
+	}
+
+	// Set locale if available
+	if user.PreferredLanguage != language.Und {
+		locale := oidc.NewLocale(user.PreferredLanguage)
+		introspection.Locale = locale
+	}
+
+	// Add admin claim if user is admin
+	if user.IsAdmin {
+		if introspection.Claims == nil {
+			introspection.Claims = make(map[string]any)
+		}
+		introspection.Claims["admin"] = true
+	}
+
 	return nil
 }
 
 // GetPrivateClaimsFromScopes implements the op.Storage interface
 // it will be called for the creation of a JWT access token to assert claims for custom scopes
 func (s *Storage) GetPrivateClaimsFromScopes(ctx context.Context, userID, clientID string, scopes []string) (claims map[string]any, err error) {
-	// Simple implementation that returns empty claims
-	// In a real implementation, this would look up claims based on user ID, client ID, and scopes
-	return map[string]any{}, nil
-}
+	// Start a transaction to fetch user data
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
 
-func (s *Storage) getPrivateClaimsFromScopes(ctx context.Context, userID, clientID string, scopes []string) (claims map[string]any, err error) {
-	// Simple implementation that returns empty claims
-	// In a real implementation, this would look up claims based on user ID, client ID, and scopes
-	return map[string]any{}, nil
+	// Fetch user from database
+	user, err := s.db.SearchUserByID(tx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.SearchUserByID(tx, %s). %+v", userID, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+	}
+
+	// Initialize claims map
+	claims = make(map[string]any)
+
+	// Process each requested scope and add corresponding claims
+	for _, scope := range scopes {
+		switch scope {
+		case CustomScope:
+			// Add custom claim for custom scope
+			claims[CustomClaim] = "custom_claim_value"
+
+		case oidc.ScopeProfile:
+			// Add profile-related claims
+			if user.PreferredLanguage != language.Und {
+				claims["locale"] = user.PreferredLanguage.String()
+			}
+			if user.Npub != nil {
+				pubkeyHex := fmt.Sprintf("%x", user.Npub.SerializeCompressed()[1:])
+				claims["preferred_username"] = pubkeyHex
+			}
+
+		// Other scopes could be handled here
+		case oidc.ScopeEmail:
+			// Email claims - not implemented in current user model
+
+		case oidc.ScopePhone:
+			// Phone claims - not implemented in current user model
+		}
+	}
+
+	// Always add admin claim if user is admin
+	if user.IsAdmin {
+		claims["admin"] = true
+	}
+
+	return claims, nil
 }
 
 // GetKeyByIDAndClientID implements the op.Storage interface
 // it will be called to validate the signatures of a JWT (JWT Profile Grant and Authentication)
 func (s *Storage) GetKeyByIDAndClientID(ctx context.Context, keyID, clientID string) (*jose.JSONWebKey, error) {
-	// This is a simplified implementation
-	// In a production system, you would look up the key in a database or key store
-	// Return a dummy key for now to avoid panicking
-	return nil, fmt.Errorf("key not found")
+	// JWT Profile Grant requires public keys to be registered for clients
+	// In a production system, you would:
+	// 1. Add a client_keys table to store public keys with their key IDs
+	// 2. Fetch the key from database: SELECT key_data FROM client_keys WHERE client_id = ? AND key_id = ?
+	// 3. Parse and return the JSONWebKey
+	//
+	// For this implementation, JWT Profile Grant is not supported
+	// Clients should use client_secret_post or client_secret_basic instead
+	return nil, fmt.Errorf("JWT Profile Grant not supported: key '%s' not found for client '%s'", keyID, clientID)
 }
 
 // ValidateJWTProfileScopes implements the op.Storage interface
 // it will be called to validate the scopes of a JWT Profile Authorization Grant request
 func (s *Storage) ValidateJWTProfileScopes(ctx context.Context, userID string, scopes []string) ([]string, error) {
-	// This is a simplified implementation that returns all provided scopes
-	// In a production system, you would validate what scopes are allowed for the user
-	return scopes, nil
+	// Start a transaction to fetch user data
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	// Fetch user to check permissions
+	user, err := s.db.SearchUserByID(tx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.SearchUserByID(tx, %s). %+v", userID, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+	}
+
+	// Validate and filter scopes based on user permissions
+	validScopes := make([]string, 0, len(scopes))
+
+	for _, scope := range scopes {
+		// Check if scope is allowed
+		switch scope {
+		case oidc.ScopeOpenID, oidc.ScopeProfile, oidc.ScopeEmail, oidc.ScopePhone, oidc.ScopeAddress:
+			// Standard OIDC scopes are always allowed
+			validScopes = append(validScopes, scope)
+
+		case CustomScope:
+			// Custom scope is always allowed
+			validScopes = append(validScopes, scope)
+
+		default:
+			// Check for custom scope patterns (e.g., "custom_scope:impersonate:*")
+			if len(scope) > len(CustomScopeImpersonatePrefix) && scope[:len(CustomScopeImpersonatePrefix)] == CustomScopeImpersonatePrefix {
+				// Impersonation scope - only allowed for admin users
+				if user.IsAdmin {
+					validScopes = append(validScopes, scope)
+				}
+				// Otherwise, skip this scope (not allowed for non-admin users)
+			} else {
+				// Unknown scope - could be allowed or rejected based on policy
+				// For now, we'll allow unknown scopes
+				validScopes = append(validScopes, scope)
+			}
+		}
+	}
+
+	return validScopes, nil
 }
 
 // Health implements the op.Storage interface
