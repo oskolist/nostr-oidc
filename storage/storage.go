@@ -46,57 +46,77 @@ func NewStorage(db *sql.DB) (Storage, error) {
 // CreateAuthRequest implements the op.Storage interface
 // it will be called after parsing and validation of the authentication request
 func (s *Storage) CreateAuthRequest(ctx context.Context, authReq *oidc.AuthRequest, userID string) (op.AuthRequest, error) {
-	panic("CreateAuthRequest. not yet implemented")
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
+	if len(authReq.Prompt) == 1 && authReq.Prompt[0] == "none" {
+		// With prompt=none, there is no way for the user to log in
+		// so return error right away.
+		return nil, oidc.ErrLoginRequired()
+	}
+
+	// typically, you'll fill your storage / storage model with the information of the passed object
+	request := authRequestToInternal(authReq, userID)
+
+	// you'll also have to create a unique id for the request (this might be done by your database; we'll use a uuid)
+	request.ID = uuid.NewString()
 	//
-	// if len(authReq.Prompt) == 1 && authReq.Prompt[0] == "none" {
-	//     // With prompt=none, there is no way for the user to log in
-	//     // so return error right away.
-	//     return nil, oidc.ErrLoginRequired()
-	// }
-	//
-	// // typically, you'll fill your storage / storage model with the information of the passed object
-	// request := authRequestToInternal(authReq, userID)
-	//
-	// // you'll also have to create a unique id for the request (this might be done by your database; we'll use a uuid)
-	// request.ID = uuid.NewString()
-	//
-	// // and save it in your database (for demonstration purposed we will use a simple map)
-	// s.authRequests[request.ID] = request
-	//
-	// // finally, return the request (which implements the AuthRequest interface of the OP
-	// return request, nil
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	err = s.db.AddAuthRequest(tx, request)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+	}
+
+	return request, nil
 }
 
 // AuthRequestByID implements the op.Storage interface
 // it will be called after the Login UI redirects back to the OIDC endpoint
 func (s *Storage) AuthRequestByID(ctx context.Context, id string) (op.AuthRequest, error) {
-	panic("AuthRequestByID. not yet implemented")
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
-	// request, ok := s.authRequests[id]
-	// if !ok {
-	//     return nil, fmt.Errorf("request not found")
-	// }
-	// return request, nil
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	authReq, err := s.db.SearchAuthRequestByID(tx, id)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+	}
+	return authReq, nil
 }
 
-// AuthRequestByCode implements the op.Storage interface
-// it will be called after parsing and validation of the token request (in an authorization code flow)
+// AuthRequestByID implements the op.Storage interface
+// it will be called after the Login UI redirects back to the OIDC endpoint
 func (s *Storage) AuthRequestByCode(ctx context.Context, code string) (op.AuthRequest, error) {
-	panic("AuthRequestByCode. not yet implemented")
-	// // for this example we read the id by code and then get the request by id
-	// requestID, ok := func() (string, bool) {
-	//     s.lock.Lock()
-	//     defer s.lock.Unlock()
-	//     requestID, ok := s.codes[code]
-	//     return requestID, ok
-	// }()
-	// if !ok {
-	//     return nil, fmt.Errorf("code invalid or expired")
-	// }
-	// return s.AuthRequestByID(ctx, requestID)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	authReq, err := s.db.SearchAuthRequestByID(tx, code)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+	}
+	return authReq, nil
 }
 
 // SaveAuthCode implements the op.Storage interface
@@ -116,18 +136,23 @@ func (s *Storage) SaveAuthCode(ctx context.Context, id string, code string) erro
 // - authentication request (in an implicit flow)
 // - token request (in an authorization code flow)
 func (s *Storage) DeleteAuthRequest(ctx context.Context, id string) error {
-	panic("DeleteAuthRequest. not yet implemented")
-	// // you can simply delete all reference to the auth request
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
-	// delete(s.authRequests, id)
-	// for code, requestID := range s.codes {
-	//     if id == requestID {
-	//         delete(s.codes, code)
-	//         return nil
-	//     }
-	// }
-	// return nil
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	err = s.db.DeleteAuthRequest(tx, id)
+	if err != nil {
+		return fmt.Errorf("s.db.DeleteAuthRequest(tx, id). %+v", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %+v", err)
+	}
+	return nil
+
 }
 
 // CreateAccessToken implements the op.Storage interface
@@ -135,7 +160,6 @@ func (s *Storage) DeleteAuthRequest(ctx context.Context, id string) error {
 func (s *Storage) CreateAccessToken(ctx context.Context, request op.TokenRequest) (string, time.Time, error) {
 	panic("CreateAccessToken. not yet implemented")
 	// var applicationID string
-	// switch req := request.(type) {
 	// case *AuthRequest:
 	//     // if authenticated for an app (auth code / implicit flow) we must save the client_id to the token
 	//     applicationID = req.ApplicationID
@@ -286,29 +310,26 @@ func (s *Storage) RevokeToken(ctx context.Context, tokenIDOrToken string, userID
 // SigningKey implements the op.Storage interface
 // it will be called when creating the OpenID Provider
 func (s *Storage) SigningKey(ctx context.Context) (op.SigningKey, error) {
-	panic("SigningKey. not yet implemented")
 	// // in this example the signing key is a static rsa.PrivateKey and the algorithm used is RS256
 	// // you would obviously have a more complex implementation and store / retrieve the key from your database as well
-	// return &s.signingKey, nil
+	return &s.signingKey, nil
 }
 
 // SignatureAlgorithms implements the op.Storage interface
 // it will be called to get the sign
 func (s *Storage) SignatureAlgorithms(context.Context) ([]jose.SignatureAlgorithm, error) {
-	panic("SignatureAlgorithms. not yet implemented")
-	// return []jose.SignatureAlgorithm{s.signingKey.algorithm}, nil
+	return []jose.SignatureAlgorithm{s.signingKey.algorithm}, nil
 }
 
 // KeySet implements the op.Storage interface
 // it will be called to get the current (public) keys, among others for the keys_endpoint or for validating access_tokens on the userinfo_endpoint, ...
 func (s *Storage) KeySet(ctx context.Context) ([]op.Key, error) {
-	panic("KeySet. not yet implemented")
 	// // as mentioned above, this example only has a single signing key without key rotation,
 	// // so it will directly use its public key
 	// //
 	// // when using key rotation you typically would store the public keys alongside the private keys in your database
 	// // and give both of them an expiration date, with the public key having a longer lifetime
-	// return []op.Key{&publicKey{s.signingKey}}, nil
+	return []op.Key{&publicKey{s.signingKey}}, nil
 }
 
 // GetClientByClientID implements the op.Storage interface
@@ -327,7 +348,22 @@ func (s *Storage) GetClientByClientID(ctx context.Context, clientID string) (op.
 // AuthorizeClientIDSecret implements the op.Storage interface
 // it will be called for validating the client_id, client_secret on token or introspection requests
 func (s *Storage) AuthorizeClientIDSecret(ctx context.Context, clientID, clientSecret string) error {
-	panic("AuthorizeClientIDSecret. not yet implemented")
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	_, err = s.db.SearchClientByID(tx, clientID)
+	if err != nil {
+		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %+v", err)
+	}
+	return nil
 	// s.lock.Lock()
 	// defer s.lock.Unlock()
 	// client, ok := s.clients[clientID]
@@ -464,6 +500,21 @@ func (s *Storage) Health(ctx context.Context) error {
 }
 func (s *Storage) CheckUserNpub(id string, publicKey *btcec.PublicKey) error {
 
-	panic("CheckUserNpub is not yet implemented")
+	tx, err := s.db.BeginTx(context.Background(), nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	_, err = s.db.SearchUserByNpub(tx, publicKey)
+	if err != nil {
+		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %+v", err)
+	}
+	return nil
 	// return nil
 }

@@ -148,7 +148,7 @@ func newOP(
 			// as an example on how to customize an endpoint this will change the authorization_endpoint from /authorize to /auth
 			op.WithCustomAuthEndpoint(op.NewEndpoint("auth")),
 			// Pass our logger to the OP
-			// op.WithLogger(logger.WithGroup("op")),
+			op.WithLogger(slog.Default().WithGroup("op")),
 		}, extraOptions...)...,
 	)
 	if err != nil {

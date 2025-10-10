@@ -103,7 +103,67 @@ func (s *storageDB) SearchAuthRequestByID(tx *sql.Tx, id string) (*AuthRequest, 
 
 	err = stmt.QueryRow(id).Scan(
 		&authReq.ID, &authReq.CreationDate, &authReq.ApplicationID, &authReq.CallbackURI, &authReq.TransferState, &promptJSON,
-		&uiLocalesJSON, &authReq.LoginHint, &maxAuthAgeStr, &authReq.UserID, &scopesJSON, 
+		&uiLocalesJSON, &authReq.LoginHint, &maxAuthAgeStr, &authReq.UserID, &scopesJSON,
+		(*string)(&authReq.ResponseType), (*string)(&authReq.ResponseMode), &authReq.Nonce, &challenge, &method,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal JSON fields
+	if err := json.Unmarshal(promptJSON, &authReq.Prompt); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(uiLocalesJSON, &authReq.UiLocales); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(scopesJSON, &authReq.Scopes); err != nil {
+		return nil, err
+	}
+
+	// Handle MaxAuthAge
+	if maxAuthAgeStr.Valid {
+		dur, err := time.ParseDuration(maxAuthAgeStr.String)
+		if err != nil {
+			return nil, err
+		}
+		authReq.MaxAuthAge = &dur
+	}
+
+	// Handle CodeChallenge
+	if challenge.Valid || method.Valid {
+		authReq.CodeChallenge = &OIDCCodeChallenge{
+			Challenge: challenge.String,
+			Method:    method.String,
+		}
+	}
+
+	return &authReq, nil
+}
+func (s *storageDB) SearchAuthRequestByCode(tx *sql.Tx, code string) (*AuthRequest, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `
+		SELECT id, creation_date, application_id, callback_uri, transfer_state, prompt,
+			   ui_locales, login_hint, max_auth_age, user_id, scopes, response_type,
+			   response_mode, nonce, code_challenge_challenge, code_challenge_method
+		FROM auth_requests WHERE code_challenge_challenge = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+
+	var authReq AuthRequest
+	var maxAuthAgeStr, challenge, method sql.NullString
+	var promptJSON, uiLocalesJSON, scopesJSON []byte
+
+	err = stmt.QueryRow(code).Scan(
+		&authReq.ID, &authReq.CreationDate, &authReq.ApplicationID, &authReq.CallbackURI, &authReq.TransferState, &promptJSON,
+		&uiLocalesJSON, &authReq.LoginHint, &maxAuthAgeStr, &authReq.UserID, &scopesJSON,
 		(*string)(&authReq.ResponseType), (*string)(&authReq.ResponseMode), &authReq.Nonce, &challenge, &method,
 	)
 	if err != nil {
