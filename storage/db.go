@@ -652,3 +652,67 @@ func (s *storageDB) DeleteRefreshToken(tx *sql.Tx, id string) error {
 	_, err = stmt.Exec(id)
 	return err
 }
+
+// SaveAuthCode updates an auth request with the authorization code
+func (s *storageDB) SaveAuthCode(tx *sql.Tx, id, code string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `UPDATE auth_requests SET code_challenge_challenge = ? WHERE id = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(code, id)
+	return err
+}
+
+// DeleteTokensByUserAndClient removes all tokens for a specific user and client
+func (s *storageDB) DeleteTokensByUserAndClient(tx *sql.Tx, userID, clientID string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `DELETE FROM tokens WHERE subject = ? AND application_id = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(userID, clientID)
+	return err
+}
+
+// DeleteRefreshTokensByUserAndClient removes all refresh tokens for a specific user and client
+func (s *storageDB) DeleteRefreshTokensByUserAndClient(tx *sql.Tx, userID, clientID string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `DELETE FROM refresh_tokens WHERE user_id = ? AND application_id = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(userID, clientID)
+	return err
+}
+
+// HealthCheck performs a simple database health check
+func (s *storageDB) HealthCheck(tx *sql.Tx) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	_, err := tx.Exec("SELECT 1")
+	return err
+}
