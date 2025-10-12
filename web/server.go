@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync/atomic"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/zitadel/logging"
@@ -33,7 +34,7 @@ var static embed.FS
 var counter atomic.Int64
 
 // Use one of the pre-made clients in storage/clients.go or register a new one.
-func SetupServer(storage Storage,  extraOptions ...op.Option) chi.Router {
+func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
 	// the OpenID Provider requires a 32-byte key for (token) encryption
 	// be sure to create a proper crypto random key and manage it securely!
 	key := sha256.Sum256([]byte("test"))
@@ -65,7 +66,9 @@ func SetupServer(storage Storage,  extraOptions ...op.Option) chi.Router {
 		storage,
 		func(insecure bool) (op.IssuerFromRequest, error) {
 			return func(r *http.Request) string {
-				return r.Header.Get("issuer")
+				// issuer := r.Header.Get("issuer")
+				// log.Printf("\n issuer: %+v", issuer)
+				return "http://localhost:8082"
 			}, nil
 		},
 		key,
@@ -126,23 +129,25 @@ func newOP(
 
 		// enables refresh_token grant use
 		GrantTypeRefreshToken: true,
+		
 
 		// enables use of the `request` Object parameter
 		RequestObjectSupported: true,
 
 		// this example has only static texts (in English), so we'll set the here accordingly
 		SupportedUILocales: []language.Tag{language.English},
-
-		// DeviceAuthorization: op.DeviceAuthorizationConfig{
-		// 	Lifetime:     5 * time.Minute,
-		// 	PollInterval: 5 * time.Second,
-		// 	UserFormPath: "/device",
-		// 	UserCode:     op.UserCodeBase20,
-		// },
+		
+		DeviceAuthorization: op.DeviceAuthorizationConfig{
+			Lifetime:     5 * time.Minute,
+			PollInterval: 5 * time.Second,
+			UserFormPath: "/device",
+			UserCode:     op.UserCodeBase20,
+		},
 	}
 	handler, err := op.NewProvider(config, storage,
 		issuer,
 		append([]op.Option{
+			// op.Is
 			//we must explicitly allow the use of the http issuer
 			op.WithAllowInsecure(),
 			// as an example on how to customize an endpoint this will change the authorization_endpoint from /authorize to /auth

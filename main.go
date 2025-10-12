@@ -24,6 +24,11 @@ func main() {
 	}
 	defer db.Close()
 
+	err = database.RunMigrations(db)
+	if err != nil {
+		log.Fatalf("could not run migration: %v", err)
+	}
+
 	storage, err := storage.NewStorage(db)
 	if err != nil {
 		log.Fatalf("storage.NewStorage(db). %v", err)

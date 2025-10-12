@@ -629,6 +629,7 @@ func (s *Storage) KeySet(ctx context.Context) ([]op.Key, error) {
 // GetClientByClientID implements the op.Storage interface
 // it will be called whenever information (type, redirect_uris, ...) about the client behind the client_id is needed
 func (s *Storage) GetClientByClientID(ctx context.Context, clientID string) (op.Client, error) {
+	log.Printf("\n clientid: %+v", clientID)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
@@ -644,6 +645,7 @@ func (s *Storage) GetClientByClientID(ctx context.Context, clientID string) (op.
 	if err != nil {
 		return nil, fmt.Errorf("tx.Commit(). %+v", err)
 	}
+	log.Printf("\n client: %+v", client)
 
 	// Client already implements op.Client interface
 	return client, nil
@@ -657,29 +659,19 @@ func (s *Storage) AuthorizeClientIDSecret(ctx context.Context, clientID, clientS
 		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
 	}
 	defer tx.Rollback()
+	log.Printf("\n clientid: %+v", clientID)
 
 	_, err = s.db.SearchClientByID(tx, clientID)
 	if err != nil {
 		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
 	}
+	// log.Printf("\n client: %+v", )
 
 	err = tx.Commit()
 	if err != nil {
 		return fmt.Errorf("tx.Commit(). %+v", err)
 	}
 	return nil
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
-	// client, ok := s.clients[clientID]
-	// if !ok {
-	//     return fmt.Errorf("client not found")
-	// }
-	// // for this example we directly check the secret
-	// // obviously you would not have the secret in plain text, but rather hashed and salted (e.g. using bcrypt)
-	// if client.secret != clientSecret {
-	//     return fmt.Errorf("invalid secret")
-	// }
-	// return nil
 }
 
 // SetUserinfoFromScopes implements the op.Storage interface.

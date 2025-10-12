@@ -26,7 +26,7 @@ func Open(path string) (*sql.DB, error) {
 //go:embed migrations/*.sql
 var embedMigrations embed.FS //
 
-func RunMigrations(db *sql.DB, migrationsDir string) error {
+func RunMigrations(db *sql.DB) error {
 	goose.SetBaseFS(embedMigrations)
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return fmt.Errorf(`goose.SetDialect(string(databaseType)). %w`, err)
