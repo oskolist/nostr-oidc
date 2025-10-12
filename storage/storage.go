@@ -13,6 +13,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/go-jose/go-jose/v4"
 	"github.com/google/uuid"
+	"github.com/nbd-wtf/go-nostr"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
 	"golang.org/x/text/language"
@@ -1037,7 +1038,7 @@ func (s *Storage) Health(ctx context.Context) error {
 
 	return nil
 }
-func (s *Storage) CheckUserNpub(id string, publicKey *btcec.PublicKey) error {
+func (s *Storage) CheckUserNpub(publicKey *btcec.PublicKey) error {
 
 	tx, err := s.db.BeginTx(context.Background(), nil)
 	if err != nil {
@@ -1055,5 +1056,99 @@ func (s *Storage) CheckUserNpub(id string, publicKey *btcec.PublicKey) error {
 		return fmt.Errorf("tx.Commit(). %+v", err)
 	}
 	return nil
+	// return nil
+}
+
+// Device Code auth flow
+
+func (s *Storage) CheckNostrEventSignature(event nostr.Event) error {
+	valid, err := event.CheckSignature()
+	if err != nil {
+		return fmt.Errorf("event.CheckSignature(). %+v", err)
+	}
+	if !valid {
+		return fmt.Errorf("invalid signature")
+	}
+	return nil
+}
+
+func (s *Storage) StoreDeviceAuthorization(ctx context.Context, clientID, deviceCode, userCode string, expires time.Time, scopes []string) error {
+	panic(" StoreDeviceAuthorization unimplemented")
+	// s.lock.Lock()
+	// defer s.lock.Unlock()
+	//
+	// if _, ok := s.clients[clientID]; !ok {
+	// 	return errors.New("client not found")
+	// }
+	//
+	// if _, ok := s.userCodes[userCode]; ok {
+	// 	return op.ErrDuplicateUserCode
+	// }
+	//
+	// s.deviceCodes[deviceCode] = deviceAuthorizationEntry{
+	// 	deviceCode: deviceCode,
+	// 	userCode:   userCode,
+	// 	state: &op.DeviceAuthorizationState{
+	// 		ClientID: clientID,
+	// 		Scopes:   scopes,
+	// 		Expires:  expires,
+	// 	},
+	// }
+	//
+	// s.userCodes[userCode] = deviceCode
+	// return nil
+}
+
+func (s *Storage) GetDeviceAuthorizatonState(ctx context.Context, clientID, deviceCode string) (*op.DeviceAuthorizationState, error) {
+	panic(" GetDeviceAuthorizatonState unimplemented")
+	// if ctx.Err() != nil {
+	// 	return nil, ctx.Err()
+	// }
+	//
+	// s.lock.Lock()
+	// defer s.lock.Unlock()
+	//
+	// entry, ok := s.deviceCodes[deviceCode]
+	// if !ok || entry.state.ClientID != clientID {
+	// 	return nil, errors.New("device code not found for client") // is there a standard not found error in the framework?
+	// }
+	//
+	// return entry.state, nil
+}
+
+func (s *Storage) GetDeviceAuthorizationByUserCode(ctx context.Context, userCode string) (*op.DeviceAuthorizationState, error) {
+	panic(" GetDeviceAuthorizationByUserCode unimplemented")
+	// s.lock.Lock()
+	// defer s.lock.Unlock()
+	//
+	// entry, ok := s.deviceCodes[s.userCodes[userCode]]
+	// if !ok {
+	// 	return nil, errors.New("user code not found")
+	// }
+	//
+	// return entry.state, nil
+}
+
+func (s *Storage) CompleteDeviceAuthorization(ctx context.Context, userCode, subject string) error {
+	panic(" CompleteDeviceAuthorization unimplemented")
+	// s.lock.Lock()
+	// defer s.lock.Unlock()
+	//
+	// entry, ok := s.deviceCodes[s.userCodes[userCode]]
+	// if !ok {
+	// 	return errors.New("user code not found")
+	// }
+	//
+	// entry.state.Subject = subject
+	// entry.state.Done = true
+	// return nil
+}
+
+func (s *Storage) DenyDeviceAuthorization(ctx context.Context, userCode string) error {
+	panic(" DenyDeviceAuthorization unimplemented")
+	// s.lock.Lock()
+	// defer s.lock.Unlock()
+	//
+	// s.deviceCodes[s.userCodes[userCode]].state.Denied = true
 	// return nil
 }

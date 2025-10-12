@@ -124,6 +124,12 @@ type User struct {
 	Npub              *btcec.PublicKey
 	PreferredLanguage language.Tag
 	IsAdmin           bool
+} 
+
+type deviceAuthorizationEntry struct {
+	deviceCode string
+	userCode   string
+	state      *op.DeviceAuthorizationState
 }
 
 // // ExampleClientID is only used in the example server

@@ -40,7 +40,7 @@ func (l *login) createRouter(issuerInterceptor *op.IssuerInterceptor) {
 }
 
 type authenticate interface {
-	CheckUserNpub(id string, publicKey *btcec.PublicKey) error
+	CheckUserNpub(publicKey *btcec.PublicKey) error
 }
 
 func (l *login) loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +91,7 @@ func (l *login) checkLoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := r.FormValue("id")
-	err = l.authenticate.CheckUserNpub(id, pubkey)
+	err = l.authenticate.CheckUserNpub(pubkey)
 	if err != nil {
 		// renderLogin(w, id, err)
 		return
