@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/zitadel/oidc/v3/pkg/op"
 	"golang.org/x/text/language"
 )
 
@@ -43,11 +44,11 @@ func (s *storageDB) AddAuthRequest(tx *sql.Tx, authReq *AuthRequest) error {
 		return fmt.Errorf("json.Marshal(authReq.Scopes): %w", err)
 	}
 
-	// Handle MaxAuthAge (pointer to duration)
-	var maxAuthAgeStr sql.NullString
+	// Handle MaxAuthAge (pointer to duration) - store as nanoseconds
+	var maxAuthAgeNanos sql.NullInt64
 	if authReq.MaxAuthAge != nil {
-		maxAuthAgeStr.String = authReq.MaxAuthAge.String()
-		maxAuthAgeStr.Valid = true
+		maxAuthAgeNanos.Int64 = authReq.MaxAuthAge.Nanoseconds()
+		maxAuthAgeNanos.Valid = true
 	}
 
 	// Handle CodeChallenge (pointer)
@@ -74,7 +75,7 @@ func (s *storageDB) AddAuthRequest(tx *sql.Tx, authReq *AuthRequest) error {
 
 	_, err = stmt.Exec(
 		authReq.ID, authReq.CreationDate, authReq.ApplicationID, authReq.CallbackURI, authReq.TransferState, string(promptJSON),
-		string(uiLocalesJSON), authReq.LoginHint, maxAuthAgeStr, authReq.UserID, string(scopesJSON), string(authReq.ResponseType),
+		string(uiLocalesJSON), authReq.LoginHint, maxAuthAgeNanos, authReq.UserID, string(scopesJSON), string(authReq.ResponseType),
 		string(authReq.ResponseMode), authReq.Nonce, challenge, method,
 	)
 	if err != nil {
@@ -102,12 +103,13 @@ func (s *storageDB) SearchAuthRequestByID(tx *sql.Tx, id string) (*AuthRequest, 
 	defer stmt.Close()
 
 	var authReq AuthRequest
-	var maxAuthAgeStr, challenge, method sql.NullString
+	var maxAuthAgeNanos sql.NullInt64
+	var challenge, method sql.NullString
 	var promptJSON, uiLocalesJSON, scopesJSON []byte
 
 	err = stmt.QueryRow(id).Scan(
 		&authReq.ID, &authReq.CreationDate, &authReq.ApplicationID, &authReq.CallbackURI, &authReq.TransferState, &promptJSON,
-		&uiLocalesJSON, &authReq.LoginHint, &maxAuthAgeStr, &authReq.UserID, &scopesJSON,
+		&uiLocalesJSON, &authReq.LoginHint, &maxAuthAgeNanos, &authReq.UserID, &scopesJSON,
 		(*string)(&authReq.ResponseType), (*string)(&authReq.ResponseMode), &authReq.Nonce, &challenge, &method,
 	)
 	if err != nil {
@@ -125,12 +127,9 @@ func (s *storageDB) SearchAuthRequestByID(tx *sql.Tx, id string) (*AuthRequest, 
 		return nil, fmt.Errorf("json.Unmarshal(scopesJSON): %w", err)
 	}
 
-	// Handle MaxAuthAge
-	if maxAuthAgeStr.Valid {
-		dur, err := time.ParseDuration(maxAuthAgeStr.String)
-		if err != nil {
-			return nil, fmt.Errorf("time.ParseDuration(maxAuthAgeStr): %w", err)
-		}
+	// Handle MaxAuthAge - convert from nanoseconds to duration
+	if maxAuthAgeNanos.Valid {
+		dur := time.Duration(maxAuthAgeNanos.Int64)
 		authReq.MaxAuthAge = &dur
 	}
 
@@ -162,12 +161,13 @@ func (s *storageDB) SearchAuthRequestByCode(tx *sql.Tx, code string) (*AuthReque
 	defer stmt.Close()
 
 	var authReq AuthRequest
-	var maxAuthAgeStr, challenge, method sql.NullString
+	var maxAuthAgeNanos sql.NullInt64
+	var challenge, method sql.NullString
 	var promptJSON, uiLocalesJSON, scopesJSON []byte
 
 	err = stmt.QueryRow(code).Scan(
 		&authReq.ID, &authReq.CreationDate, &authReq.ApplicationID, &authReq.CallbackURI, &authReq.TransferState, &promptJSON,
-		&uiLocalesJSON, &authReq.LoginHint, &maxAuthAgeStr, &authReq.UserID, &scopesJSON,
+		&uiLocalesJSON, &authReq.LoginHint, &maxAuthAgeNanos, &authReq.UserID, &scopesJSON,
 		(*string)(&authReq.ResponseType), (*string)(&authReq.ResponseMode), &authReq.Nonce, &challenge, &method,
 	)
 	if err != nil {
@@ -185,12 +185,9 @@ func (s *storageDB) SearchAuthRequestByCode(tx *sql.Tx, code string) (*AuthReque
 		return nil, fmt.Errorf("json.Unmarshal(scopesJSON): %w", err)
 	}
 
-	// Handle MaxAuthAge
-	if maxAuthAgeStr.Valid {
-		dur, err := time.ParseDuration(maxAuthAgeStr.String)
-		if err != nil {
-			return nil, fmt.Errorf("time.ParseDuration(maxAuthAgeStr): %w", err)
-		}
+	// Handle MaxAuthAge - convert from nanoseconds to duration
+	if maxAuthAgeNanos.Valid {
+		dur := time.Duration(maxAuthAgeNanos.Int64)
 		authReq.MaxAuthAge = &dur
 	}
 
@@ -268,10 +265,10 @@ func (s *storageDB) AddClient(tx *sql.Tx, client *Client) error {
 	defer stmt.Close()
 
 	_, err = stmt.Exec(
-		client.id, client.secret, string(redirectURIsJSON), string(client.applicationType),
+		client.id, client.secret, string(redirectURIsJSON), int(client.applicationType),
 		string(client.authMethod), string(responseTypesJSON), string(grantTypesJSON),
-		string(client.accessTokenType), client.devMode, client.idTokenUserinfoClaimsAssertion,
-		client.clockSkew.String(), string(postLogoutRedirectURIsJSON), string(redirectURIsGlobsJSON),
+		int(client.accessTokenType), client.devMode, client.idTokenUserinfoClaimsAssertion,
+		client.clockSkew.Nanoseconds(), string(postLogoutRedirectURIsJSON), string(redirectURIsGlobsJSON),
 	)
 	return err
 }
@@ -295,17 +292,23 @@ func (s *storageDB) SearchClientByID(tx *sql.Tx, id string) (*Client, error) {
 	defer stmt.Close()
 
 	var client Client
-	var clockSkewStr string
+	var applicationTypeInt, accessTokenTypeInt int
+	var clockSkewNanos int64
 	var redirectURIsJSON, responseTypesJSON, grantTypesJSON, postLogoutRedirectURIsJSON, redirectURIsGlobsJSON []byte
 
 	err = stmt.QueryRow(id).Scan(
-		&client.id, &client.secret, &redirectURIsJSON, &client.applicationType, &client.authMethod,
-		&responseTypesJSON, &grantTypesJSON, &client.accessTokenType, &client.devMode,
-		&client.idTokenUserinfoClaimsAssertion, &clockSkewStr, &postLogoutRedirectURIsJSON, &redirectURIsGlobsJSON,
+		&client.id, &client.secret, &redirectURIsJSON, &applicationTypeInt, &client.authMethod,
+		&responseTypesJSON, &grantTypesJSON, &accessTokenTypeInt, &client.devMode,
+		&client.idTokenUserinfoClaimsAssertion, &clockSkewNanos, &postLogoutRedirectURIsJSON, &redirectURIsGlobsJSON,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchClientByID): %w", err)
 	}
+
+	// Convert integers back to enum types
+	client.applicationType = op.ApplicationType(applicationTypeInt)
+	client.accessTokenType = op.AccessTokenType(accessTokenTypeInt)
+	client.clockSkew = time.Duration(clockSkewNanos)
 
 	// Unmarshal JSON fields
 	if err := json.Unmarshal(redirectURIsJSON, &client.redirectURIs); err != nil {
@@ -322,11 +325,6 @@ func (s *storageDB) SearchClientByID(tx *sql.Tx, id string) (*Client, error) {
 	}
 	if err := json.Unmarshal(redirectURIsGlobsJSON, &client.redirectURIGlobs); err != nil {
 		return nil, fmt.Errorf("json.Unmarshal(redirectURIGlobs): %w", err)
-	}
-
-	client.clockSkew, err = time.ParseDuration(clockSkewStr)
-	if err != nil {
-		return nil, fmt.Errorf("time.ParseDuration(clockSkewStr). %w", err)
 	}
 
 	return &client, nil
@@ -740,4 +738,217 @@ func (s *storageDB) HealthCheck(tx *sql.Tx) error {
 
 	_, err := tx.Exec("SELECT 1")
 	return err
+}
+
+// AddDeviceAuthorization inserts a new device authorization into the database
+func (s *storageDB) AddDeviceAuthorization(tx *sql.Tx, entry *deviceAuthorizationEntry) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+	if entry == nil || entry.state == nil {
+		panic("entry and entry.state cannot be nil")
+	}
+
+	// Marshal the entire state to JSON
+	stateJSON, err := json.Marshal(entry.state)
+	if err != nil {
+		return fmt.Errorf("json.Marshal(entry.state): %w", err)
+	}
+
+	query := `
+		INSERT INTO device_authorizations (
+			device_code, user_code, state
+		) VALUES (?, ?, ?)`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("tx.Prepare(AddDeviceAuthorization): %w", err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(entry.deviceCode, entry.userCode, string(stateJSON))
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(AddDeviceAuthorization): %w", err)
+	}
+	return nil
+}
+
+// SearchDeviceAuthorizationByDeviceCode retrieves a device authorization by device code
+func (s *storageDB) SearchDeviceAuthorizationByDeviceCode(tx *sql.Tx, deviceCode string) (*deviceAuthorizationEntry, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `
+		SELECT device_code, user_code, state
+		FROM device_authorizations WHERE device_code = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return nil, fmt.Errorf("tx.Prepare(SearchDeviceAuthorizationByDeviceCode): %w", err)
+	}
+	defer stmt.Close()
+
+	var entry deviceAuthorizationEntry
+	var stateJSON []byte
+
+	err = stmt.QueryRow(deviceCode).Scan(
+		&entry.deviceCode, &entry.userCode, &stateJSON,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchDeviceAuthorizationByDeviceCode): %w", err)
+	}
+
+	// Unmarshal the state JSON
+	entry.state = &op.DeviceAuthorizationState{}
+	if err := json.Unmarshal(stateJSON, entry.state); err != nil {
+		return nil, fmt.Errorf("json.Unmarshal(stateJSON): %w", err)
+	}
+
+	return &entry, nil
+}
+
+// SearchDeviceAuthorizationByUserCode retrieves a device authorization by user code
+func (s *storageDB) SearchDeviceAuthorizationByUserCode(tx *sql.Tx, userCode string) (*deviceAuthorizationEntry, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `
+		SELECT device_code, user_code, state
+		FROM device_authorizations WHERE user_code = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return nil, fmt.Errorf("tx.Prepare(SearchDeviceAuthorizationByUserCode): %w", err)
+	}
+	defer stmt.Close()
+
+	var entry deviceAuthorizationEntry
+	var stateJSON []byte
+
+	err = stmt.QueryRow(userCode).Scan(
+		&entry.deviceCode, &entry.userCode, &stateJSON,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchDeviceAuthorizationByUserCode): %w", err)
+	}
+
+	// Unmarshal the state JSON
+	entry.state = &op.DeviceAuthorizationState{}
+	if err := json.Unmarshal(stateJSON, entry.state); err != nil {
+		return nil, fmt.Errorf("json.Unmarshal(stateJSON): %w", err)
+	}
+
+	return &entry, nil
+}
+
+// UpdateDeviceAuthorizationSubject updates the subject field and marks the authorization as done
+func (s *storageDB) UpdateDeviceAuthorizationSubject(tx *sql.Tx, userCode, subject string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	// First, read the current state
+	var stateJSON []byte
+	query := `SELECT state FROM device_authorizations WHERE user_code = ?`
+	err := tx.QueryRow(query).Scan(&stateJSON)
+	if err != nil {
+		return fmt.Errorf("failed to read current state: %w", err)
+	}
+
+	// Unmarshal the state
+	var state op.DeviceAuthorizationState
+	if err := json.Unmarshal(stateJSON, &state); err != nil {
+		return fmt.Errorf("json.Unmarshal(stateJSON): %w", err)
+	}
+
+	// Update the state
+	state.Subject = subject
+	state.Done = true
+
+	// Marshal back to JSON
+	updatedStateJSON, err := json.Marshal(&state)
+	if err != nil {
+		return fmt.Errorf("json.Marshal(state): %w", err)
+	}
+
+	// Update in database
+	updateQuery := `UPDATE device_authorizations SET state = ? WHERE user_code = ?`
+	stmt, err := tx.Prepare(updateQuery)
+	if err != nil {
+		return fmt.Errorf("tx.Prepare(UpdateDeviceAuthorizationSubject): %w", err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(string(updatedStateJSON), userCode)
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(UpdateDeviceAuthorizationSubject): %w", err)
+	}
+	return nil
+}
+
+// UpdateDeviceAuthorizationDenied marks the device authorization as denied
+func (s *storageDB) UpdateDeviceAuthorizationDenied(tx *sql.Tx, userCode string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	// First, read the current state
+	var stateJSON []byte
+	query := `SELECT state FROM device_authorizations WHERE user_code = ?`
+	err := tx.QueryRow(query).Scan(&stateJSON)
+	if err != nil {
+		return fmt.Errorf("failed to read current state: %w", err)
+	}
+
+	// Unmarshal the state
+	var state op.DeviceAuthorizationState
+	if err := json.Unmarshal(stateJSON, &state); err != nil {
+		return fmt.Errorf("json.Unmarshal(stateJSON): %w", err)
+	}
+
+	// Update the state
+	state.Denied = true
+
+	// Marshal back to JSON
+	updatedStateJSON, err := json.Marshal(&state)
+	if err != nil {
+		return fmt.Errorf("json.Marshal(state): %w", err)
+	}
+
+	// Update in database
+	updateQuery := `UPDATE device_authorizations SET state = ? WHERE user_code = ?`
+	stmt, err := tx.Prepare(updateQuery)
+	if err != nil {
+		return fmt.Errorf("tx.Prepare(UpdateDeviceAuthorizationDenied): %w", err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(string(updatedStateJSON), userCode)
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(UpdateDeviceAuthorizationDenied): %w", err)
+	}
+	return nil
+}
+
+// DeleteDeviceAuthorization removes a device authorization by device code
+func (s *storageDB) DeleteDeviceAuthorization(tx *sql.Tx, deviceCode string) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `DELETE FROM device_authorizations WHERE device_code = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("tx.Prepare(DeleteDeviceAuthorization): %w", err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(deviceCode)
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(DeleteDeviceAuthorization): %w", err)
+	}
+	return nil
 }

@@ -124,7 +124,7 @@ type User struct {
 	Npub              *btcec.PublicKey
 	PreferredLanguage language.Tag
 	IsAdmin           bool
-} 
+}
 
 type deviceAuthorizationEntry struct {
 	deviceCode string

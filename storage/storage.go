@@ -1073,82 +1073,183 @@ func (s *Storage) CheckNostrEventSignature(event nostr.Event) error {
 }
 
 func (s *Storage) StoreDeviceAuthorization(ctx context.Context, clientID, deviceCode, userCode string, expires time.Time, scopes []string) error {
-	panic(" StoreDeviceAuthorization unimplemented")
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
-	//
-	// if _, ok := s.clients[clientID]; !ok {
-	// 	return errors.New("client not found")
-	// }
-	//
-	// if _, ok := s.userCodes[userCode]; ok {
-	// 	return op.ErrDuplicateUserCode
-	// }
-	//
-	// s.deviceCodes[deviceCode] = deviceAuthorizationEntry{
-	// 	deviceCode: deviceCode,
-	// 	userCode:   userCode,
-	// 	state: &op.DeviceAuthorizationState{
-	// 		ClientID: clientID,
-	// 		Scopes:   scopes,
-	// 		Expires:  expires,
-	// 	},
-	// }
-	//
-	// s.userCodes[userCode] = deviceCode
-	// return nil
+	// Start a transaction
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	// Verify that the client exists
+	_, err = s.db.SearchClientByID(tx, clientID)
+	if err != nil {
+		return fmt.Errorf("client not found: %w", err)
+	}
+
+	// Check if user code already exists (to prevent duplicates)
+	_, err = s.db.SearchDeviceAuthorizationByUserCode(tx, userCode)
+	if err == nil {
+		// User code already exists
+		return op.ErrDuplicateUserCode
+	}
+	// If error is "not found", that's what we want - continue
+	// For other errors, we could log but proceed since duplicate check is best-effort
+
+	// Create the device authorization entry
+	entry := &deviceAuthorizationEntry{
+		deviceCode: deviceCode,
+		userCode:   userCode,
+		state: &op.DeviceAuthorizationState{
+			ClientID: clientID,
+			Scopes:   scopes,
+			Expires:  expires,
+			Done:     false,
+			Denied:   false,
+		},
+	}
+
+	// Store in database
+	err = s.db.AddDeviceAuthorization(tx, entry)
+	if err != nil {
+		return fmt.Errorf("s.db.AddDeviceAuthorization(tx, entry). %+v", err)
+	}
+
+	// Commit transaction
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %+v", err)
+	}
+
+	return nil
 }
 
 func (s *Storage) GetDeviceAuthorizatonState(ctx context.Context, clientID, deviceCode string) (*op.DeviceAuthorizationState, error) {
-	panic(" GetDeviceAuthorizatonState unimplemented")
-	// if ctx.Err() != nil {
-	// 	return nil, ctx.Err()
-	// }
-	//
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
-	//
-	// entry, ok := s.deviceCodes[deviceCode]
-	// if !ok || entry.state.ClientID != clientID {
-	// 	return nil, errors.New("device code not found for client") // is there a standard not found error in the framework?
-	// }
-	//
-	// return entry.state, nil
+	// Check if context is already cancelled
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	// Start a transaction
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	// Fetch the device authorization entry by device code
+	entry, err := s.db.SearchDeviceAuthorizationByDeviceCode(tx, deviceCode)
+	if err != nil {
+		return nil, fmt.Errorf("device code not found: %w", err)
+	}
+
+	// Verify that the device code belongs to the specified client
+	if entry.state.ClientID != clientID {
+		return nil, fmt.Errorf("device code not found for client")
+	}
+
+	// Commit transaction
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+	}
+
+	return entry.state, nil
 }
 
 func (s *Storage) GetDeviceAuthorizationByUserCode(ctx context.Context, userCode string) (*op.DeviceAuthorizationState, error) {
-	panic(" GetDeviceAuthorizationByUserCode unimplemented")
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
-	//
-	// entry, ok := s.deviceCodes[s.userCodes[userCode]]
-	// if !ok {
-	// 	return nil, errors.New("user code not found")
-	// }
-	//
-	// return entry.state, nil
+	// Start a transaction
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	// Fetch the device authorization entry by user code
+	entry, err := s.db.SearchDeviceAuthorizationByUserCode(tx, userCode)
+	if err != nil {
+		return nil, fmt.Errorf("user code not found: %w", err)
+	}
+
+	// Commit transaction
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+	}
+
+	return entry.state, nil
 }
 
 func (s *Storage) CompleteDeviceAuthorization(ctx context.Context, userCode, subject string) error {
-	panic(" CompleteDeviceAuthorization unimplemented")
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
-	//
-	// entry, ok := s.deviceCodes[s.userCodes[userCode]]
-	// if !ok {
-	// 	return errors.New("user code not found")
-	// }
-	//
-	// entry.state.Subject = subject
-	// entry.state.Done = true
-	// return nil
+	// Start a transaction
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	// Verify that the user code exists
+	entry, err := s.db.SearchDeviceAuthorizationByUserCode(tx, userCode)
+	if err != nil {
+		return fmt.Errorf("user code not found: %w", err)
+	}
+
+	// Verify the entry hasn't already been denied or completed
+	if entry.state.Denied {
+		return fmt.Errorf("device authorization already denied")
+	}
+	if entry.state.Done {
+		return fmt.Errorf("device authorization already completed")
+	}
+
+	// Update the authorization with the subject and mark as done
+	err = s.db.UpdateDeviceAuthorizationSubject(tx, userCode, subject)
+	if err != nil {
+		return fmt.Errorf("s.db.UpdateDeviceAuthorizationSubject(tx, %s, %s). %+v", userCode, subject, err)
+	}
+
+	// Commit transaction
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %+v", err)
+	}
+
+	return nil
 }
 
 func (s *Storage) DenyDeviceAuthorization(ctx context.Context, userCode string) error {
-	panic(" DenyDeviceAuthorization unimplemented")
-	// s.lock.Lock()
-	// defer s.lock.Unlock()
-	//
-	// s.deviceCodes[s.userCodes[userCode]].state.Denied = true
-	// return nil
+	// Start a transaction
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	// Verify that the user code exists
+	entry, err := s.db.SearchDeviceAuthorizationByUserCode(tx, userCode)
+	if err != nil {
+		return fmt.Errorf("user code not found: %w", err)
+	}
+
+	// Verify the entry hasn't already been completed
+	if entry.state.Done {
+		return fmt.Errorf("device authorization already completed")
+	}
+	if entry.state.Denied {
+		// Already denied, just return success (idempotent operation)
+		return nil
+	}
+
+	// Mark the authorization as denied
+	err = s.db.UpdateDeviceAuthorizationDenied(tx, userCode)
+	if err != nil {
+		return fmt.Errorf("s.db.UpdateDeviceAuthorizationDenied(tx, %s). %+v", userCode, err)
+	}
+
+	// Commit transaction
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %+v", err)
+	}
+
+	return nil
 }
