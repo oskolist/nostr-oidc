@@ -24,7 +24,7 @@ const (
 type Storage interface {
 	op.Storage
 	authenticate
-	// deviceAuthenticate
+	deviceAuthenticate
 }
 
 //go:embed static/*
@@ -32,6 +32,24 @@ var static embed.FS
 
 // simple counter for request IDs
 var counter atomic.Int64
+
+func LogRequestURL(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fullURL := r.URL.String()
+		if r.URL.Scheme == "" {
+			// Add scheme and host if missing (common in proxies or local envs)
+			scheme := "http"
+			if r.TLS != nil {
+				scheme = "https"
+			}
+			fullURL = scheme + "://" + r.Host + r.RequestURI
+		}
+
+		log.Printf("Incoming request: %s %s\n", r.Method, fullURL)
+
+		next.ServeHTTP(w, r)
+	})
+}
 
 // Use one of the pre-made clients in storage/clients.go or register a new one.
 func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
@@ -48,6 +66,7 @@ func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
 	fileServer := http.FileServer(httpFs)
 
 	router := chi.NewRouter()
+	router.Use(LogRequestURL)
 	router.Use(logging.Middleware(
 		logging.WithIDFunc(func() slog.Attr {
 			return slog.Int64("id", counter.Add(1))
@@ -82,6 +101,8 @@ func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
 	//for the simplicity of the example this means a simple page with username and password field
 	//be sure to provide an IssuerInterceptor with the IssuerFromRequest from the OP so the login can select / and pass it to the storage
 	l := NewLogin(storage, op.AuthCallbackURL(provider), op.NewIssuerInterceptor(provider.IssuerFromRequest))
+	// op.Co
+	// oidc.Discog
 
 	// regardless of how many pages / steps there are in the process, the UI must be registered in the router,
 	// so we will direct all calls to /login to the login UI
@@ -122,7 +143,7 @@ func newOP(
 		CodeMethodS256: true,
 
 		// enables additional client_id/client_secret authentication by form post (not only HTTP Basic Auth)
-		AuthMethodPost: true,
+		AuthMethodPost: false,
 
 		// enables additional authentication by using private_key_jwt
 		AuthMethodPrivateKeyJWT: false,
@@ -144,7 +165,7 @@ func newOP(
 			UserCode:     op.UserCodeBase20,
 		},
 	}
-	handler, err := op.NewProvider(config, storage,
+	provider, err := op.NewProvider(config, storage,
 		issuer,
 		append([]op.Option{
 			// op.Is
@@ -159,5 +180,5 @@ func newOP(
 	if err != nil {
 		return nil, err
 	}
-	return handler, nil
+	return provider, nil
 }

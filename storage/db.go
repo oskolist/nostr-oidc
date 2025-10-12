@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -31,15 +32,15 @@ func (s *storageDB) AddAuthRequest(tx *sql.Tx, authReq *AuthRequest) error {
 	// Marshal slice fields to JSON
 	promptJSON, err := json.Marshal(authReq.Prompt)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(authReq.Prompt): %w", err)
 	}
 	uiLocalesJSON, err := json.Marshal(authReq.UiLocales)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(authReq.UiLocales): %w", err)
 	}
 	scopesJSON, err := json.Marshal(authReq.Scopes)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(authReq.Scopes): %w", err)
 	}
 
 	// Handle MaxAuthAge (pointer to duration)
@@ -67,7 +68,7 @@ func (s *storageDB) AddAuthRequest(tx *sql.Tx, authReq *AuthRequest) error {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return err
+		return fmt.Errorf("tx.Prepare(AddAuthRequest): %w", err)
 	}
 	defer stmt.Close()
 
@@ -76,7 +77,10 @@ func (s *storageDB) AddAuthRequest(tx *sql.Tx, authReq *AuthRequest) error {
 		string(uiLocalesJSON), authReq.LoginHint, maxAuthAgeStr, authReq.UserID, string(scopesJSON), string(authReq.ResponseType),
 		string(authReq.ResponseMode), authReq.Nonce, challenge, method,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(AddAuthRequest): %w", err)
+	}
+	return nil
 }
 
 // SearchAuthRequestByID retrieves an auth request by ID
@@ -93,7 +97,7 @@ func (s *storageDB) SearchAuthRequestByID(tx *sql.Tx, id string) (*AuthRequest, 
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx.Prepare(SearchAuthRequestByID): %w", err)
 	}
 	defer stmt.Close()
 
@@ -107,25 +111,25 @@ func (s *storageDB) SearchAuthRequestByID(tx *sql.Tx, id string) (*AuthRequest, 
 		(*string)(&authReq.ResponseType), (*string)(&authReq.ResponseMode), &authReq.Nonce, &challenge, &method,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchAuthRequestByID): %w", err)
 	}
 
 	// Unmarshal JSON fields
 	if err := json.Unmarshal(promptJSON, &authReq.Prompt); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(promptJSON): %w", err)
 	}
 	if err := json.Unmarshal(uiLocalesJSON, &authReq.UiLocales); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(uiLocalesJSON): %w", err)
 	}
 	if err := json.Unmarshal(scopesJSON, &authReq.Scopes); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(scopesJSON): %w", err)
 	}
 
 	// Handle MaxAuthAge
 	if maxAuthAgeStr.Valid {
 		dur, err := time.ParseDuration(maxAuthAgeStr.String)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("time.ParseDuration(maxAuthAgeStr): %w", err)
 		}
 		authReq.MaxAuthAge = &dur
 	}
@@ -153,7 +157,7 @@ func (s *storageDB) SearchAuthRequestByCode(tx *sql.Tx, code string) (*AuthReque
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx.Prepare(SearchAuthRequestByCode): %w", err)
 	}
 	defer stmt.Close()
 
@@ -167,25 +171,25 @@ func (s *storageDB) SearchAuthRequestByCode(tx *sql.Tx, code string) (*AuthReque
 		(*string)(&authReq.ResponseType), (*string)(&authReq.ResponseMode), &authReq.Nonce, &challenge, &method,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchAuthRequestByCode): %w", err)
 	}
 
 	// Unmarshal JSON fields
 	if err := json.Unmarshal(promptJSON, &authReq.Prompt); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(promptJSON): %w", err)
 	}
 	if err := json.Unmarshal(uiLocalesJSON, &authReq.UiLocales); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(uiLocalesJSON): %w", err)
 	}
 	if err := json.Unmarshal(scopesJSON, &authReq.Scopes); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(scopesJSON): %w", err)
 	}
 
 	// Handle MaxAuthAge
 	if maxAuthAgeStr.Valid {
 		dur, err := time.ParseDuration(maxAuthAgeStr.String)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("time.ParseDuration(maxAuthAgeStr): %w", err)
 		}
 		authReq.MaxAuthAge = &dur
 	}
@@ -211,12 +215,15 @@ func (s *storageDB) DeleteAuthRequest(tx *sql.Tx, id string) error {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return err
+		return fmt.Errorf("tx.Prepare(DeleteAuthRequest): %w", err)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(id)
-	return err
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(DeleteAuthRequest): %w", err)
+	}
+	return nil
 }
 
 // AddClient inserts a new client into the database
@@ -228,23 +235,23 @@ func (s *storageDB) AddClient(tx *sql.Tx, client *Client) error {
 	// Marshal slice fields to JSON
 	redirectURIsJSON, err := json.Marshal(client.redirectURIs)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(redirectURIs): %w", err)
 	}
 	responseTypesJSON, err := json.Marshal(client.responseTypes)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(responseTypes): %w", err)
 	}
 	grantTypesJSON, err := json.Marshal(client.grantTypes)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(grantTypes): %w", err)
 	}
 	postLogoutRedirectURIsJSON, err := json.Marshal(client.postLogoutRedirectURIGlobs)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(postLogoutRedirectURIGlobs): %w", err)
 	}
 	redirectURIsGlobsJSON, err := json.Marshal(client.redirectURIGlobs)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(redirectURIGlobs): %w", err)
 	}
 
 	query := `
@@ -256,7 +263,7 @@ func (s *storageDB) AddClient(tx *sql.Tx, client *Client) error {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return err
+		return fmt.Errorf("tx.Prepare(AddClient): %w", err)
 	}
 	defer stmt.Close()
 
@@ -283,7 +290,7 @@ func (s *storageDB) SearchClientByID(tx *sql.Tx, id string) (*Client, error) {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx.Prepare(SearchClientByID): %w", err)
 	}
 	defer stmt.Close()
 
@@ -297,29 +304,29 @@ func (s *storageDB) SearchClientByID(tx *sql.Tx, id string) (*Client, error) {
 		&client.idTokenUserinfoClaimsAssertion, &clockSkewStr, &postLogoutRedirectURIsJSON, &redirectURIsGlobsJSON,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchClientByID): %w", err)
 	}
 
 	// Unmarshal JSON fields
 	if err := json.Unmarshal(redirectURIsJSON, &client.redirectURIs); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(redirectURIs): %w", err)
 	}
 	if err := json.Unmarshal(responseTypesJSON, &client.responseTypes); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(responseTypes): %w", err)
 	}
 	if err := json.Unmarshal(grantTypesJSON, &client.grantTypes); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(grantTypes): %w", err)
 	}
 	if err := json.Unmarshal(postLogoutRedirectURIsJSON, &client.postLogoutRedirectURIGlobs); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(postLogoutRedirectURIGlobs): %w", err)
 	}
 	if err := json.Unmarshal(redirectURIsGlobsJSON, &client.redirectURIGlobs); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(redirectURIGlobs): %w", err)
 	}
 
 	client.clockSkew, err = time.ParseDuration(clockSkewStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("time.ParseDuration(clockSkewStr). %w", err)
 	}
 
 	return &client, nil
@@ -335,12 +342,15 @@ func (s *storageDB) DeleteClient(tx *sql.Tx, id string) error {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return err
+		return fmt.Errorf("tx.Prepare(DeleteClient): %w", err)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(id)
-	return err
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(AddClient): %w", err)
+	}
+	return nil
 }
 
 // AddUser inserts a new user into the database
@@ -359,7 +369,7 @@ func (s *storageDB) AddUser(tx *sql.Tx, user *User) error {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return err
+		return fmt.Errorf("tx.Prepare(AddUser): %w", err)
 	}
 	defer stmt.Close()
 
@@ -377,7 +387,7 @@ func (s *storageDB) SearchUserByID(tx *sql.Tx, id string) (*User, error) {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx.Prepare(SearchUserByID): %w", err)
 	}
 	defer stmt.Close()
 
@@ -387,20 +397,20 @@ func (s *storageDB) SearchUserByID(tx *sql.Tx, id string) (*User, error) {
 
 	err = stmt.QueryRow(id).Scan(&user.ID, &npubBytes, &preferredLangStr, &user.IsAdmin)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchUserByID): %w", err)
 	}
 
 	// Deserialize public key
 	if len(npubBytes) > 0 {
 		user.Npub, err = btcec.ParsePubKey(npubBytes)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("btcec.ParsePubKey(npubBytes): %w", err)
 		}
 	}
 
 	user.PreferredLanguage, err = language.Parse(preferredLangStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("language.Parse(preferredLangStr): %w", err)
 	}
 
 	return &user, nil
@@ -422,7 +432,7 @@ func (s *storageDB) SearchUserByNpub(tx *sql.Tx, npub *btcec.PublicKey) (*User, 
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx.Prepare(SearchUserByNpub): %w", err)
 	}
 	defer stmt.Close()
 
@@ -432,18 +442,18 @@ func (s *storageDB) SearchUserByNpub(tx *sql.Tx, npub *btcec.PublicKey) (*User, 
 
 	err = stmt.QueryRow(npubBytes).Scan(&user.ID, &dbNpubBytes, &preferredLangStr, &user.IsAdmin)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchUserByNpub): %w", err)
 	}
 
 	// Deserialize public key (should match the input)
 	user.Npub, err = btcec.ParsePubKey(dbNpubBytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("btcec.ParsePubKey(dbNpubBytes): %w", err)
 	}
 
 	user.PreferredLanguage, err = language.Parse(preferredLangStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("language.Parse(preferredLangStr): %w", err)
 	}
 
 	return &user, nil
@@ -459,12 +469,15 @@ func (s *storageDB) DeleteUser(tx *sql.Tx, id string) error {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return err
+		return fmt.Errorf("tx.Prepare(DeleteUser): %w", err)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(id)
-	return err
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(DeleteClient): %w", err)
+	}
+	return nil
 }
 
 // AddToken inserts a new token into the database
@@ -476,11 +489,11 @@ func (s *storageDB) AddToken(tx *sql.Tx, token *Token) error {
 	// Marshal slice fields to JSON
 	audienceJSON, err := json.Marshal(token.Audience)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(token.Audience): %w", err)
 	}
 	scopesJSON, err := json.Marshal(token.Scopes)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(token.Scopes): %w", err)
 	}
 
 	query := `
@@ -489,7 +502,7 @@ func (s *storageDB) AddToken(tx *sql.Tx, token *Token) error {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return err
+		return fmt.Errorf("tx.Prepare(AddToken): %w", err)
 	}
 	defer stmt.Close()
 
@@ -510,7 +523,7 @@ func (s *storageDB) SearchTokenByID(tx *sql.Tx, id string) (*Token, error) {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx.Prepare(SearchTokenByID): %w", err)
 	}
 	defer stmt.Close()
 
@@ -522,15 +535,15 @@ func (s *storageDB) SearchTokenByID(tx *sql.Tx, id string) (*Token, error) {
 		&audienceJSON, &token.Expiration, &scopesJSON,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchTokenByID): %w", err)
 	}
 
 	// Unmarshal JSON fields
 	if err := json.Unmarshal(audienceJSON, &token.Audience); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(audienceJSON): %w", err)
 	}
 	if err := json.Unmarshal(scopesJSON, &token.Scopes); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(scopesJSON): %w", err)
 	}
 
 	return &token, nil
@@ -546,12 +559,15 @@ func (s *storageDB) DeleteToken(tx *sql.Tx, id string) error {
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return err
+		return fmt.Errorf("tx.Prepare(DeleteToken): %w", err)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(id)
-	return err
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(AddUser): %w", err)
+	}
+	return nil
 }
 
 // AddRefreshToken inserts a new refresh token into the database
@@ -563,15 +579,15 @@ func (s *storageDB) AddRefreshToken(tx *sql.Tx, refreshToken *RefreshToken) erro
 	// Marshal slice fields to JSON
 	amrJSON, err := json.Marshal(refreshToken.AMR)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(refreshToken.AMR): %w", err)
 	}
 	audienceJSON, err := json.Marshal(refreshToken.Audience)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(refreshToken.Audience): %w", err)
 	}
 	scopesJSON, err := json.Marshal(refreshToken.Scopes)
 	if err != nil {
-		return err
+		return fmt.Errorf("json.Marshal(refreshToken.Scopes): %w", err)
 	}
 
 	query := `
@@ -581,7 +597,7 @@ func (s *storageDB) AddRefreshToken(tx *sql.Tx, refreshToken *RefreshToken) erro
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return err
+		return fmt.Errorf("tx.Prepare(AddRefreshToken): %w", err)
 	}
 	defer stmt.Close()
 
@@ -605,7 +621,7 @@ func (s *storageDB) SearchRefreshTokenByID(tx *sql.Tx, id string) (*RefreshToken
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("tx.Prepare(SearchRefreshTokenByID): %w", err)
 	}
 	defer stmt.Close()
 
@@ -618,18 +634,18 @@ func (s *storageDB) SearchRefreshTokenByID(tx *sql.Tx, id string) (*RefreshToken
 		&scopesJSON, &refreshToken.AccessToken,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchRefreshTokenByID): %w", err)
 	}
 
 	// Unmarshal JSON fields
 	if err := json.Unmarshal(amrJSON, &refreshToken.AMR); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(amrJSON): %w", err)
 	}
 	if err := json.Unmarshal(audienceJSON, &refreshToken.Audience); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(audienceJSON): %w", err)
 	}
 	if err := json.Unmarshal(scopesJSON, &refreshToken.Scopes); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json.Unmarshal(scopesJSON): %w", err)
 	}
 
 	return &refreshToken, nil
@@ -650,7 +666,10 @@ func (s *storageDB) DeleteRefreshToken(tx *sql.Tx, id string) error {
 	defer stmt.Close()
 
 	_, err = stmt.Exec(id)
-	return err
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(DeleteUser): %w", err)
+	}
+	return nil
 }
 
 // SaveAuthCode updates an auth request with the authorization code
@@ -668,7 +687,10 @@ func (s *storageDB) SaveAuthCode(tx *sql.Tx, id, code string) error {
 	defer stmt.Close()
 
 	_, err = stmt.Exec(code, id)
-	return err
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(AddToken): %w", err)
+	}
+	return nil
 }
 
 // DeleteTokensByUserAndClient removes all tokens for a specific user and client
@@ -681,12 +703,15 @@ func (s *storageDB) DeleteTokensByUserAndClient(tx *sql.Tx, userID, clientID str
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return err
+		return fmt.Errorf("tx.Prepare(DeleteToken): %w", err)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(userID, clientID)
-	return err
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(AddRefreshToken): %w", err)
+	}
+	return nil
 }
 
 // DeleteRefreshTokensByUserAndClient removes all refresh tokens for a specific user and client
