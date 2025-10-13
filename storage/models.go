@@ -85,6 +85,24 @@ func (c *Client) RestrictAdditionalAccessTokenScopes() func(scopes []string) []s
 }
 
 func (c *Client) IsScopeAllowed(scope string) bool {
+	// Allow standard OIDC scopes
+	// Note: "offline_access" is the correct scope for requesting refresh tokens,
+	// not "refresh_token" which is a grant type, not a scope
+	allowedScopes := []string{
+		oidc.ScopeOpenID,
+		oidc.ScopeProfile,
+		oidc.ScopeEmail,
+		oidc.ScopeAddress,
+		oidc.ScopePhone,
+		oidc.ScopeOfflineAccess,
+	}
+
+	for _, allowedScope := range allowedScopes {
+		if scope == allowedScope {
+			return true
+		}
+	}
+
 	return false
 }
 

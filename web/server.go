@@ -150,7 +150,9 @@ func newOP(
 
 		// enables refresh_token grant use
 		GrantTypeRefreshToken: true,
-		SupportedScopes: []string{"openid", "profile", "refresh_token"},
+
+		// Standard OIDC scopes - use "offline_access" to request refresh tokens, not "refresh_token"
+		SupportedScopes: []string{"openid", "profile", "email", "offline_access"},
 
 		// enables use of the `request` Object parameter
 		RequestObjectSupported: true,

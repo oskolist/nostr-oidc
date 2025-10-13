@@ -275,6 +275,11 @@ func (s *Storage) CreateAccessAndRefreshTokens(ctx context.Context, request op.T
 			subject = req.GetSubject()
 			audience = req.GetAudience()
 			scopes = req.GetScopes()
+		case *op.DeviceAuthorizationState:
+			applicationID = req.GetClientID()
+			subject = req.GetSubject()
+			audience = req.GetAudience()
+			scopes = req.GetScopes()
 		default:
 			err = fmt.Errorf("unsupported request type: %T", req)
 			return "", "", time.Time{}, err

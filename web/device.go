@@ -147,7 +147,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// w.Header().Add("HX-Retarget", "body")
 	// w.Header().Add("HX-Reswap", "innerHTML")
-	templates.ConfirmDevice(nostrEvent.Content, state.ClientID).Render(r.Context(), w)
+	templates.ConfirmDevice(nostrEvent.Content, state.ClientID, state.Scopes).Render(r.Context(), w)
 }
 
 func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
@@ -181,7 +181,6 @@ func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
 	action := r.Form.Get("action")
 	log.Printf("\n actions %+v", action)
 	log.Printf("\n data %+v", data)
-
 
 	switch action {
 	case "allowed":
