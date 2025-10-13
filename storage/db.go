@@ -852,7 +852,7 @@ func (s *storageDB) UpdateDeviceAuthorizationSubject(tx *sql.Tx, userCode, subje
 	// First, read the current state
 	var stateJSON []byte
 	query := `SELECT state FROM device_authorizations WHERE user_code = ?`
-	err := tx.QueryRow(query).Scan(&stateJSON)
+	err := tx.QueryRow(query, userCode).Scan(&stateJSON)
 	if err != nil {
 		return fmt.Errorf("failed to read current state: %w", err)
 	}

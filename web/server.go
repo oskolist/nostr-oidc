@@ -108,9 +108,9 @@ func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
 	// so we will direct all calls to /login to the login UI
 	router.Mount("/login/", http.StripPrefix("/login", l.router))
 
-	// router.Route("/device", func(r chi.Router) {
-	// 	registerDeviceAuth(storage, r)
-	// })
+	router.Route("/device", func(r chi.Router) {
+		registerDeviceAuth(storage, r)
+	})
 
 	handler := http.Handler(provider)
 
@@ -150,14 +150,14 @@ func newOP(
 
 		// enables refresh_token grant use
 		GrantTypeRefreshToken: true,
-		
+		SupportedScopes: []string{"openid", "profile", "refresh_token"},
 
 		// enables use of the `request` Object parameter
 		RequestObjectSupported: true,
 
 		// this example has only static texts (in English), so we'll set the here accordingly
 		SupportedUILocales: []language.Tag{language.English},
-		
+
 		DeviceAuthorization: op.DeviceAuthorizationConfig{
 			Lifetime:     5 * time.Minute,
 			PollInterval: 5 * time.Second,
@@ -172,7 +172,7 @@ func newOP(
 			//we must explicitly allow the use of the http issuer
 			op.WithAllowInsecure(),
 			// as an example on how to customize an endpoint this will change the authorization_endpoint from /authorize to /auth
-			op.WithCustomAuthEndpoint(op.NewEndpoint("auth")),
+			// op.WithCustomAuthEndpoint(op.NewEndpoint("auth")),
 			// Pass our logger to the OP
 			op.WithLogger(slog.Default().WithGroup("op")),
 		}, extraOptions...)...,

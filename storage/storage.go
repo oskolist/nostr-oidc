@@ -240,6 +240,8 @@ func (s *Storage) CreateAccessToken(ctx context.Context, request op.TokenRequest
 // CreateAccessAndRefreshTokens implements the op.Storage interface
 // it will be called for all requests able to return an access and refresh token (Authorization Code Flow, Refresh Token Request)
 func (s *Storage) CreateAccessAndRefreshTokens(ctx context.Context, request op.TokenRequest, currentRefreshToken string) (accessTokenID string, newRefreshToken string, expiration time.Time, err error) {
+	log.Printf("\n request.scopes: %+v", request.GetScopes())
+	log.Printf("\n request.audience: %+v", request.GetAudience())
 	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -655,18 +657,17 @@ func (s *Storage) GetClientByClientID(ctx context.Context, clientID string) (op.
 // AuthorizeClientIDSecret implements the op.Storage interface
 // it will be called for validating the client_id, client_secret on token or introspection requests
 func (s *Storage) AuthorizeClientIDSecret(ctx context.Context, clientID, clientSecret string) error {
+	log.Println("authorizedclient ")
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
 	}
 	defer tx.Rollback()
-	log.Printf("\n clientid: %+v", clientID)
 
 	_, err = s.db.SearchClientByID(tx, clientID)
 	if err != nil {
 		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
 	}
-	// log.Printf("\n client: %+v", )
 
 	err = tx.Commit()
 	if err != nil {
@@ -1073,6 +1074,7 @@ func (s *Storage) CheckNostrEventSignature(event nostr.Event) error {
 }
 
 func (s *Storage) StoreDeviceAuthorization(ctx context.Context, clientID, deviceCode, userCode string, expires time.Time, scopes []string) error {
+	log.Printf("scopes: %+v", scopes)
 	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

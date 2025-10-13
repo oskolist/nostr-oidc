@@ -2,14 +2,18 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/securecookie"
+	"github.com/lescuer97/nostr-oicd/web/templates"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/zitadel/oidc/v3/pkg/op"
 )
@@ -47,46 +51,6 @@ func registerDeviceAuth(storage deviceAuthenticate, router chi.Router) {
 	router.HandleFunc("/confirm", l.confirmHandler)
 }
 
-// func renderUserCode(w io.Writer, err error) {
-// 	data := struct {
-// 		Error string
-// 	}{
-// 		Error: errMsg(err),
-// 	}
-//
-// 	if err := templates.ExecuteTemplate(w, "usercode", data); err != nil {
-// 		logrus.Error(err)
-// 	}
-// }
-
-// func renderDeviceLogin(w http.ResponseWriter, userCode string, err error) {
-// 	data := &struct {
-// 		UserCode string
-// 		Error    string
-// 	}{
-// 		UserCode: userCode,
-// 		Error:    errMsg(err),
-// 	}
-// 	if err = templates.ExecuteTemplate(w, "device_login", data); err != nil {
-// 		logrus.Error(err)
-// 	}
-// }
-
-// func renderConfirmPage(w http.ResponseWriter, username, clientID string, scopes []string) {
-// 	data := &struct {
-// 		Username string
-// 		ClientID string
-// 		Scopes   []string
-// 	}{
-// 		Username: username,
-// 		ClientID: clientID,
-// 		Scopes:   scopes,
-// 	}
-// 	if err := templates.ExecuteTemplate(w, "confirm_device", data); err != nil {
-// 		logrus.Error(err)
-// 	}
-// }
-
 func (d *deviceLogin) userCodeHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -103,8 +67,7 @@ func (d *deviceLogin) userCodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("\n userCode: %+v", userCode)
-
-	// renderDeviceLogin(w, userCode, nil)
+	templates.Login(userCode).Render(r.Context(), w)
 }
 
 func redirectBack(w http.ResponseWriter, r *http.Request, prompt string) {
@@ -126,69 +89,100 @@ type userCodeCookie struct {
 }
 
 func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+	defer r.Body.Close()
+	log.Printf("after body parse")
+
+	var nostrEvent nostr.Event
+	err = json.Unmarshal(body, &nostrEvent)
+	if err != nil {
+		slog.Debug(
+			"Incorrect body",
+			slog.String("error", err.Error()),
+		)
+		http.Error(w, "body needs to be a nostr event", http.StatusBadRequest)
+		return
+	}
+
+	err = d.storage.CheckNostrEventSignature(nostrEvent)
+	if err != nil {
+		slog.Error(
+			"d.storage.CheckNostrEventSignature(nostrEvent)",
+			slog.String("error", err.Error()),
+		)
 		redirectBack(w, r, err.Error())
 		return
 	}
 
-	userCode := r.PostForm.Get("user_code")
-	if userCode == "" {
-		redirectBack(w, r, "missing user_code in request")
-		return
-	}
-	username := r.PostForm.Get("event")
-	if username == "" {
-		redirectBack(w, r, "missing username in request")
-		return
-	}
-	password := r.PostForm.Get("password")
-	if password == "" {
-		redirectBack(w, r, "missing password in request")
-		return
-	}
-
-	// if err := d.storage.CheckUsernamePasswordSimple(username, password); err != nil {
-	// 	redirectBack(w, r, err.Error())
-	// 	return
-	// }
-	state, err := d.storage.GetDeviceAuthorizationByUserCode(r.Context(), userCode)
+	state, err := d.storage.GetDeviceAuthorizationByUserCode(r.Context(), nostrEvent.Content)
 	if err != nil {
+		slog.Error(
+			"d.storage.GetDeviceAuthorizationByUserCode(r.Context(), nostrEvent.Content)",
+			slog.String("error", err.Error()),
+		)
 		redirectBack(w, r, err.Error())
 		return
 	}
 	log.Printf("\n state: %+v", state)
 
-	encoded, err := d.cookie.Encode(userCodeCookieName, userCodeCookie{userCode, username})
+	encoded, err := d.cookie.Encode(userCodeCookieName, userCodeCookie{nostrEvent.Content, nostrEvent.PubKey})
 	if err != nil {
+		slog.Error(
+			"d.cookie.Encode(userCodeCookieName, userCodeCookie{nostrEvent.Content, nostrEvent.PubKey})",
+			slog.String("error", err.Error()),
+		)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	cookie := &http.Cookie{
-		Name:  userCodeCookieName,
-		Value: encoded,
-		Path:  "/",
+		Name:     userCodeCookieName,
+		Value:    encoded,
+		HttpOnly: true,
+		Path:     "/",
 	}
 	http.SetCookie(w, cookie)
-	// renderConfirmPage(w, username, state.ClientID, state.Scopes)
+
+	// w.Header().Add("HX-Retarget", "body")
+	// w.Header().Add("HX-Reswap", "innerHTML")
+	templates.ConfirmDevice(nostrEvent.Content, state.ClientID).Render(r.Context(), w)
 }
 
 func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(userCodeCookieName)
 	if err != nil {
+		slog.Error(
+			"r.Cookie(userCodeCookieName)",
+			slog.String("error", err.Error()),
+		)
 		redirectBack(w, r, err.Error())
 		return
 	}
 	data := new(userCodeCookie)
 	if err = d.cookie.Decode(userCodeCookieName, cookie.Value, &data); err != nil {
+		slog.Error(
+			"d.cookie.Decode(userCodeCookieName, cookie.Value, &data)",
+			slog.String("error", err.Error()),
+		)
 		redirectBack(w, r, err.Error())
 		return
 	}
 	if err = r.ParseForm(); err != nil {
+		slog.Error(
+			"r.ParseForm()",
+			slog.String("error", err.Error()),
+		)
 		redirectBack(w, r, err.Error())
 		return
 	}
 
 	action := r.Form.Get("action")
+	log.Printf("\n actions %+v", action)
+	log.Printf("\n data %+v", data)
+
+
 	switch action {
 	case "allowed":
 		err = d.storage.CompleteDeviceAuthorization(r.Context(), data.UserCode, data.UserName)
@@ -198,6 +192,10 @@ func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
 		err = errors.New("action must be one of \"allow\" or \"deny\"")
 	}
 	if err != nil {
+		slog.Error(
+			"action parsing",
+			slog.String("error", err.Error()),
+		)
 		redirectBack(w, r, err.Error())
 		return
 	}

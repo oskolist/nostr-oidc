@@ -23,21 +23,15 @@ export function initLogin() {
 
     try {
       const signedEvent = await signNostrEvent(eventToSign);
-      let loginUrl = "/login"
-        if (loginContainer?.dataset?.admin === 'true') {
-            loginUrl = "/admin/login"
-        }
+      let loginUrl = "/device/login"
       const res = await fetch(new Request(loginUrl, {
         method: "POST",
         body: JSON.stringify(signedEvent),
       }));
 
       if (res.ok) {
-        if (loginContainer?.dataset?.admin === 'true') {
-            window.location.href = "/admin";
-        }else{
-            window.location.href = "/";
-        }
+          const text = await res.text();
+          window.htmx.swap(`#body-children`, text, { swapStyle: "innerHTML" });
       } else {
         const targetHeader = res.headers.get("HX-RETARGET");
         if (window.htmx && targetHeader) {

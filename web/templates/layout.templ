@@ -13,7 +13,9 @@ templ Layout(title string) {
 		</head>
 		<body hx-ext="preload">
 			<div hx-ext="remove-me" id="notifications"></div>
-			{ children... }
+			<div id="body-children">
+				{ children... }
+			</div>
 			<div id="modals"></div>
 		</body>
 	</html>

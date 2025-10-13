@@ -1,0 +1,38 @@
+package templates
+
+templ ConfirmDevice(userName, clientId string) {
+	<div class="min-h-screen flex items-center justify-center bg-gray-50">
+		<div class="w-full max-w-md bg-white rounded-xl shadow-md p-8">
+			<div class="text-center mb-6">
+				<h1 class="text-2xl font-semibold text-gray-800 mb-2">Welcome back { userName }!</h1>
+				<p class="text-sm text-gray-600">
+					You are about to grant device <span class="font-medium text-gray-800">{ clientId }</span> access to the following scopes.
+				</p>
+			</div>
+			<div class="flex items-center justify-center space-x-3 mt-8">
+				<!-- Deny Button -->
+				<button
+					type="button"
+					hx-get="/device/confirm"
+					hx-vals='{"action":"denied"}'
+					hx-target="body"
+					hx-swap="outerHTML"
+					class="inline-flex items-center justify-center px-6 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+				>
+					Deny
+				</button>
+				<!-- Allow Button -->
+				<button
+					type="button"
+					hx-get="/device/confirm"
+					hx-vals='{"action":"allowed"}'
+					hx-target="body"
+					hx-swap="outerHTML"
+					class="inline-flex items-center justify-center px-6 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-sm"
+				>
+					Allow
+				</button>
+			</div>
+		</div>
+	</div>
+}
