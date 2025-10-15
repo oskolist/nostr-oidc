@@ -48,6 +48,7 @@ func NewStorage(db *sql.DB) (Storage, error) {
 // CreateAuthRequest implements the op.Storage interface
 // it will be called after parsing and validation of the authentication request
 func (s *Storage) CreateAuthRequest(ctx context.Context, authReq *oidc.AuthRequest, userID string) (op.AuthRequest, error) {
+	log.Printf("\n\n Create Auth Request")
 	if len(authReq.Prompt) == 1 && authReq.Prompt[0] == "none" {
 		// With prompt=none, there is no way for the user to log in
 		// so return error right away.
@@ -200,6 +201,11 @@ func (s *Storage) CreateAccessToken(ctx context.Context, request op.TokenRequest
 		subject = req.GetSubject()
 		audience = req.GetAudience()
 		scopes = req.GetScopes()
+	case *op.DeviceAuthorizationState:
+		applicationID = req.GetClientID()
+		subject = req.GetSubject()
+		audience = req.GetAudience()
+		scopes = req.GetScopes()
 	default:
 		applicationID = ""
 		subject = ""
@@ -296,6 +302,7 @@ func (s *Storage) CreateAccessAndRefreshTokens(ctx context.Context, request op.T
 			Scopes:         scopes,
 		}
 
+		log.Printf("\n accesstoken: %+v", accessToken)
 		err = s.db.AddToken(tx, accessToken)
 		if err != nil {
 			return "", "", time.Time{}, fmt.Errorf("s.db.AddToken(tx, accessToken). %+v", err)
@@ -315,6 +322,7 @@ func (s *Storage) CreateAccessAndRefreshTokens(ctx context.Context, request op.T
 			AccessToken:   accessTokenID, // Link to access token
 		}
 
+		log.Printf("\n refreshToken: %+v", refreshToken)
 		err = s.db.AddRefreshToken(tx, refreshToken)
 		if err != nil {
 			return "", "", time.Time{}, fmt.Errorf("s.db.AddRefreshToken(tx, refreshToken). %+v", err)
@@ -544,6 +552,7 @@ func (s *Storage) RevokeToken(ctx context.Context, tokenIDOrToken string, userID
 	// First, try to find if this is an access token (by ID)
 	token, err := s.db.SearchTokenByID(tx, tokenIDOrToken)
 	if err == nil {
+		log.Printf("\n RevokeToken Token: %+v", token)
 		// We found an access token; now make sure it belongs to the right client and user
 		if token.ApplicationID != clientID {
 			return oidc.ErrInvalidClient().WithDescription("token was not issued for this client")
@@ -662,7 +671,6 @@ func (s *Storage) GetClientByClientID(ctx context.Context, clientID string) (op.
 // AuthorizeClientIDSecret implements the op.Storage interface
 // it will be called for validating the client_id, client_secret on token or introspection requests
 func (s *Storage) AuthorizeClientIDSecret(ctx context.Context, clientID, clientSecret string) error {
-	log.Println("authorizedclient ")
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
