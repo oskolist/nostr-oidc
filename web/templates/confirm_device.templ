@@ -9,7 +9,6 @@ templ ConfirmDevice(userName, clientId string, scopes []string) {
 					You are about to grant device <span class="font-medium text-gray-800">{ clientId }</span> access to the following scopes:
 				</p>
 			</div>
-			
 			<!-- Display Scopes -->
 			if len(scopes) > 0 {
 				<div class="mb-6 bg-gray-50 rounded-lg p-4">
@@ -26,7 +25,6 @@ templ ConfirmDevice(userName, clientId string, scopes []string) {
 					</ul>
 				</div>
 			}
-			
 			<div class="flex items-center justify-center space-x-3 mt-8">
 				<!-- Deny Button -->
 				<button

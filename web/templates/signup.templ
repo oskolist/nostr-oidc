@@ -1,0 +1,53 @@
+package templates
+
+templ SignupPage(challenge string) {
+	@Layout("Sign Up") {
+		@SignupForm(challenge)
+	}
+}
+
+templ SignupForm(challenge string) {
+	<div class="min-h-screen flex items-center justify-center bg-gray-50">
+		<div class="w-full max-w-md bg-white rounded-xl shadow-md p-8">
+			<div class="text-center mb-6">
+				<h2 class="text-2xl font-semibold text-gray-800">Create Account</h2>
+				<p class="text-sm text-gray-500">Sign up with your Nostr key to get started</p>
+			</div>
+			<form challenge={ challenge } id="signupForm" class="space-y-4">
+				<div class="text-center">
+					<button
+						type="submit"
+						class="inline-flex items-center justify-center w-full rounded-md
+						bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 font-medium
+						transition-colors duration-200"
+					>Sign Up with Nostr</button>
+				</div>
+				<div class="text-center mt-6 pt-6 border-t border-gray-200">
+					<p class="text-sm text-gray-600">
+						Already have an account?
+						<a href="/login/username" class="text-indigo-600 hover:text-indigo-700 font-medium">Sign in here</a>
+					</p>
+				</div>
+			</form>
+		</div>
+	</div>
+}
+
+templ SignupSuccess() {
+	<div class="min-h-screen flex items-center justify-center bg-gray-50">
+		<div class="w-full max-w-md bg-white rounded-xl shadow-md p-8">
+			<div class="text-center mb-6">
+				<div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+					<svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+					</svg>
+				</div>
+				<h2 class="text-2xl font-semibold text-gray-800">Account Created!</h2>
+				<p class="text-sm text-gray-500 mt-2">Your account has been successfully created</p>
+			</div>
+			<div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+				<p class="text-sm text-blue-700">You can now sign in with your Nostr key to continue</p>
+			</div>
+		</div>
+	</div>
+}

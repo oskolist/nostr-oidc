@@ -3,6 +3,9 @@
 // Login functionality
 import { initLogin } from './modules/login.js';
 
+// Signup functionality
+import { initSignup } from './modules/signup.js';
+
 // Certificate copy functionality
 import { initCertCopy } from './modules/certs.js';
 
@@ -12,6 +15,7 @@ import { initCardInputs } from './modules/forms.js';
 // Initialize everything when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   initLogin();
+  initSignup();
   initCertCopy();
   initCardInputs();
 });
@@ -21,6 +25,7 @@ if (typeof document !== 'undefined') {
   document.body.addEventListener('htmx:afterSwap', (e) => {
     const root = e && e.target ? e.target : document;
     initCardInputs(root);
+    initSignup();
   });
 }
 

@@ -108,6 +108,10 @@ func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
 	// so we will direct all calls to /login to the login UI
 	router.Mount("/login/", http.StripPrefix("/login", l.router))
 
+	// Mount signup routes
+	signupRouter := NewSignupHandler(storage)
+	router.Mount("/signup", http.StripPrefix("/signup", signupRouter))
+
 	router.Route("/device", func(r chi.Router) {
 		registerDeviceAuth(storage, r)
 	})

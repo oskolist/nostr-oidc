@@ -984,6 +984,25 @@ func (s *Storage) CheckUserNpub(publicKey *btcec.PublicKey) error {
 	return nil
 	// return nil
 }
+func (s *Storage) AddUser(user User) error {
+	tx, err := s.db.BeginTx(context.Background(), nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+	}
+	defer tx.Rollback()
+
+	err = s.db.AddUser(tx, &user)
+	if err != nil {
+		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %+v", err)
+	}
+	return nil
+	// return nil
+}
 
 // Device Code auth flow
 
