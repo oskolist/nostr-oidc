@@ -37,7 +37,7 @@ CREATE TABLE auth_requests (
 
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
-    npub BLOB,
+    npub BLOB UNIQUE,
     preferred_language TEXT,
     is_admin BOOLEAN
 );
