@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -144,10 +146,59 @@ type User struct {
 	IsAdmin           bool
 }
 
+// ScanRow implements a pgx-style row scanner for User
+// This method scans a database row directly into the User struct fields
+// Expected column order: id, npub, preferred_language, is_admin
+func (u *User) ScanRow(row interface{ Scan(...interface{}) error }) error {
+	var npubBytes []byte
+	var langStr string
+
+	err := row.Scan(&u.ID, &npubBytes, &langStr, &u.IsAdmin)
+	if err != nil {
+		return err
+	}
+
+	// Parse npub bytes to PublicKey
+	if len(npubBytes) > 0 {
+		u.Npub, err = btcec.ParsePubKey(npubBytes)
+		if err != nil {
+			return fmt.Errorf("btcec.ParsePubKey: %w", err)
+		}
+	}
+
+	// Parse language tag
+	u.PreferredLanguage, err = language.Parse(langStr)
+	if err != nil {
+		return fmt.Errorf("language.Parse: %w", err)
+	}
+
+	return nil
+}
+
 type deviceAuthorizationEntry struct {
 	deviceCode string
 	userCode   string
 	state      *op.DeviceAuthorizationState
+}
+
+// ScanRow implements a pgx-style row scanner for deviceAuthorizationEntry
+// This method scans a database row directly into the deviceAuthorizationEntry struct fields
+// Expected column order: device_code, user_code, state
+func (d *deviceAuthorizationEntry) ScanRow(row interface{ Scan(...interface{}) error }) error {
+	var stateJSON []byte
+
+	err := row.Scan(&d.deviceCode, &d.userCode, &stateJSON)
+	if err != nil {
+		return err
+	}
+
+	// Unmarshal the state JSON
+	d.state = &op.DeviceAuthorizationState{}
+	if err := json.Unmarshal(stateJSON, d.state); err != nil {
+		return fmt.Errorf("json.Unmarshal(stateJSON): %w", err)
+	}
+
+	return nil
 }
 
 // // ExampleClientID is only used in the example server

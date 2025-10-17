@@ -9,7 +9,6 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/zitadel/oidc/v3/pkg/op"
-	"golang.org/x/text/language"
 )
 
 type storageDB struct {
@@ -390,25 +389,11 @@ func (s *storageDB) SearchUserByID(tx *sql.Tx, id string) (*User, error) {
 	defer stmt.Close()
 
 	var user User
-	var npubBytes []byte
-	var preferredLangStr string
+	row := stmt.QueryRow(id)
 
-	err = stmt.QueryRow(id).Scan(&user.ID, &npubBytes, &preferredLangStr, &user.IsAdmin)
+	err = user.ScanRow(row)
 	if err != nil {
-		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchUserByID): %w", err)
-	}
-
-	// Deserialize public key
-	if len(npubBytes) > 0 {
-		user.Npub, err = btcec.ParsePubKey(npubBytes)
-		if err != nil {
-			return nil, fmt.Errorf("btcec.ParsePubKey(npubBytes): %w", err)
-		}
-	}
-
-	user.PreferredLanguage, err = language.Parse(preferredLangStr)
-	if err != nil {
-		return nil, fmt.Errorf("language.Parse(preferredLangStr): %w", err)
+		return nil, fmt.Errorf("user.ScanRow(SearchUserByID): %w", err)
 	}
 
 	return &user, nil
@@ -435,23 +420,11 @@ func (s *storageDB) SearchUserByNpub(tx *sql.Tx, npub *btcec.PublicKey) (*User, 
 	defer stmt.Close()
 
 	var user User
-	var dbNpubBytes []byte
-	var preferredLangStr string
+	row := stmt.QueryRow(npubBytes)
 
-	err = stmt.QueryRow(npubBytes).Scan(&user.ID, &dbNpubBytes, &preferredLangStr, &user.IsAdmin)
+	err = user.ScanRow(row)
 	if err != nil {
-		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchUserByNpub): %w", err)
-	}
-
-	// Deserialize public key (should match the input)
-	user.Npub, err = btcec.ParsePubKey(dbNpubBytes)
-	if err != nil {
-		return nil, fmt.Errorf("btcec.ParsePubKey(dbNpubBytes): %w", err)
-	}
-
-	user.PreferredLanguage, err = language.Parse(preferredLangStr)
-	if err != nil {
-		return nil, fmt.Errorf("language.Parse(preferredLangStr): %w", err)
+		return nil, fmt.Errorf("user.ScanRow(SearchUserByNpub): %w", err)
 	}
 
 	return &user, nil
@@ -790,19 +763,11 @@ func (s *storageDB) SearchDeviceAuthorizationByDeviceCode(tx *sql.Tx, deviceCode
 	defer stmt.Close()
 
 	var entry deviceAuthorizationEntry
-	var stateJSON []byte
+	row := stmt.QueryRow(deviceCode)
 
-	err = stmt.QueryRow(deviceCode).Scan(
-		&entry.deviceCode, &entry.userCode, &stateJSON,
-	)
+	err = entry.ScanRow(row)
 	if err != nil {
-		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchDeviceAuthorizationByDeviceCode): %w", err)
-	}
-
-	// Unmarshal the state JSON
-	entry.state = &op.DeviceAuthorizationState{}
-	if err := json.Unmarshal(stateJSON, entry.state); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(stateJSON): %w", err)
+		return nil, fmt.Errorf("entry.ScanRow(SearchDeviceAuthorizationByDeviceCode): %w", err)
 	}
 
 	return &entry, nil
@@ -825,19 +790,11 @@ func (s *storageDB) SearchDeviceAuthorizationByUserCode(tx *sql.Tx, userCode str
 	defer stmt.Close()
 
 	var entry deviceAuthorizationEntry
-	var stateJSON []byte
+	row := stmt.QueryRow(userCode)
 
-	err = stmt.QueryRow(userCode).Scan(
-		&entry.deviceCode, &entry.userCode, &stateJSON,
-	)
+	err = entry.ScanRow(row)
 	if err != nil {
-		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchDeviceAuthorizationByUserCode): %w", err)
-	}
-
-	// Unmarshal the state JSON
-	entry.state = &op.DeviceAuthorizationState{}
-	if err := json.Unmarshal(stateJSON, entry.state); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(stateJSON): %w", err)
+		return nil, fmt.Errorf("entry.ScanRow(SearchDeviceAuthorizationByUserCode): %w", err)
 	}
 
 	return &entry, nil
