@@ -242,16 +242,17 @@ type User struct {
 	Npub              *btcec.PublicKey
 	PreferredLanguage language.Tag
 	IsAdmin           bool
+	Active            bool
 }
 
 // ScanRow implements a pgx-style row scanner for User
 // This method scans a database row directly into the User struct fields
-// Expected column order: id, npub, preferred_language, is_admin
+// Expected column order: id, npub, preferred_language, is_admin, active
 func (u *User) ScanRow(row interface{ Scan(...interface{}) error }) error {
 	var npubBytes []byte
 	var langStr string
 
-	err := row.Scan(&u.ID, &npubBytes, &langStr, &u.IsAdmin)
+	err := row.Scan(&u.ID, &npubBytes, &langStr, &u.IsAdmin, &u.Active)
 	if err != nil {
 		return err
 	}

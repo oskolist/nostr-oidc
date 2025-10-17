@@ -39,7 +39,8 @@ CREATE TABLE users (
     id TEXT PRIMARY KEY,
     npub BLOB UNIQUE,
     preferred_language TEXT,
-    is_admin BOOLEAN
+    is_admin BOOLEAN,
+    active BOOLEAN DEFAULT 1
 );
 
 CREATE TABLE tokens (

@@ -334,7 +334,7 @@ func (s *storageDB) AddUser(tx *sql.Tx, user *User) error {
 		npubBytes = user.Npub.SerializeCompressed()
 	}
 
-	query := `INSERT INTO users (id, npub, preferred_language, is_admin) VALUES (?, ?, ?, ?)`
+	query := `INSERT INTO users (id, npub, preferred_language, is_admin, active) VALUES (?, ?, ?, ?, ?)`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -342,7 +342,7 @@ func (s *storageDB) AddUser(tx *sql.Tx, user *User) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(user.ID, npubBytes, user.PreferredLanguage.String(), user.IsAdmin)
+	_, err = stmt.Exec(user.ID, npubBytes, user.PreferredLanguage.String(), user.IsAdmin, user.Active)
 	return err
 }
 
@@ -352,7 +352,7 @@ func (s *storageDB) SearchUserByID(tx *sql.Tx, id string) (*User, error) {
 		panic("tx cannot be nil")
 	}
 
-	query := `SELECT id, npub, preferred_language, is_admin FROM users WHERE id = ?`
+	query := `SELECT id, npub, preferred_language, is_admin, active FROM users WHERE id = ?`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -383,7 +383,7 @@ func (s *storageDB) SearchUserByNpub(tx *sql.Tx, npub *btcec.PublicKey) (*User, 
 	// Serialize public key to bytes for database lookup
 	npubBytes := npub.SerializeCompressed()
 
-	query := `SELECT id, npub, preferred_language, is_admin FROM users WHERE npub = ?`
+	query := `SELECT id, npub, preferred_language, is_admin, active FROM users WHERE npub = ?`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {

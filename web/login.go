@@ -175,11 +175,6 @@ func (s *signupHandler) displaySignupForm(w http.ResponseWriter, r *http.Request
 // processSignup handles the signup form submission and creates a new user
 func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 	// Read the JSON body containing the signed Nostr event
-	writeHtmlNotification(templates.NotifInfo{
-		Msg:  "Invalid event format",
-		Type: notificationTypeError,
-	}, r, w)
-	return
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeHtmlNotification(templates.NotifInfo{
@@ -270,6 +265,7 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 		Npub:              pubkey,
 		PreferredLanguage: language.English,
 		IsAdmin:           false,
+		Active:            true,
 	}
 
 	// Add user to storage
