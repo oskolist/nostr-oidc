@@ -291,39 +291,11 @@ func (s *storageDB) SearchClientByID(tx *sql.Tx, id string) (*Client, error) {
 	defer stmt.Close()
 
 	var client Client
-	var applicationTypeInt, accessTokenTypeInt int
-	var clockSkewNanos int64
-	var redirectURIsJSON, responseTypesJSON, grantTypesJSON, postLogoutRedirectURIsJSON, redirectURIsGlobsJSON []byte
+	row := stmt.QueryRow(id)
 
-	err = stmt.QueryRow(id).Scan(
-		&client.id, &client.secret, &redirectURIsJSON, &applicationTypeInt, &client.authMethod,
-		&responseTypesJSON, &grantTypesJSON, &accessTokenTypeInt, &client.devMode,
-		&client.idTokenUserinfoClaimsAssertion, &clockSkewNanos, &postLogoutRedirectURIsJSON, &redirectURIsGlobsJSON,
-	)
+	err = client.ScanRow(row)
 	if err != nil {
-		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchClientByID): %w", err)
-	}
-
-	// Convert integers back to enum types
-	client.applicationType = op.ApplicationType(applicationTypeInt)
-	client.accessTokenType = op.AccessTokenType(accessTokenTypeInt)
-	client.clockSkew = time.Duration(clockSkewNanos)
-
-	// Unmarshal JSON fields
-	if err := json.Unmarshal(redirectURIsJSON, &client.redirectURIs); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(redirectURIs): %w", err)
-	}
-	if err := json.Unmarshal(responseTypesJSON, &client.responseTypes); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(responseTypes): %w", err)
-	}
-	if err := json.Unmarshal(grantTypesJSON, &client.grantTypes); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(grantTypes): %w", err)
-	}
-	if err := json.Unmarshal(postLogoutRedirectURIsJSON, &client.postLogoutRedirectURIGlobs); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(postLogoutRedirectURIGlobs): %w", err)
-	}
-	if err := json.Unmarshal(redirectURIsGlobsJSON, &client.redirectURIGlobs); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(redirectURIGlobs): %w", err)
+		return nil, fmt.Errorf("client.ScanRow(SearchClientByID): %w", err)
 	}
 
 	return &client, nil
@@ -499,22 +471,11 @@ func (s *storageDB) SearchTokenByID(tx *sql.Tx, id string) (*Token, error) {
 	defer stmt.Close()
 
 	var token Token
-	var audienceJSON, scopesJSON []byte
+	row := stmt.QueryRow(id)
 
-	err = stmt.QueryRow(id).Scan(
-		&token.ID, &token.ApplicationID, &token.Subject, &token.RefreshTokenID,
-		&audienceJSON, &token.Expiration, &scopesJSON,
-	)
+	err = token.ScanRow(row)
 	if err != nil {
-		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchTokenByID): %w", err)
-	}
-
-	// Unmarshal JSON fields
-	if err := json.Unmarshal(audienceJSON, &token.Audience); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(audienceJSON): %w", err)
-	}
-	if err := json.Unmarshal(scopesJSON, &token.Scopes); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(scopesJSON): %w", err)
+		return nil, fmt.Errorf("token.ScanRow(SearchTokenByID): %w", err)
 	}
 
 	return &token, nil
@@ -597,26 +558,11 @@ func (s *storageDB) SearchRefreshTokenByID(tx *sql.Tx, id string) (*RefreshToken
 	defer stmt.Close()
 
 	var refreshToken RefreshToken
-	var amrJSON, audienceJSON, scopesJSON []byte
+	row := stmt.QueryRow(id)
 
-	err = stmt.QueryRow(id).Scan(
-		&refreshToken.ID, &refreshToken.Token, &refreshToken.AuthTime, &amrJSON,
-		&audienceJSON, &refreshToken.UserID, &refreshToken.ApplicationID, &refreshToken.Expiration,
-		&scopesJSON, &refreshToken.AccessToken,
-	)
+	err = refreshToken.ScanRow(row)
 	if err != nil {
-		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchRefreshTokenByID): %w", err)
-	}
-
-	// Unmarshal JSON fields
-	if err := json.Unmarshal(amrJSON, &refreshToken.AMR); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(amrJSON): %w", err)
-	}
-	if err := json.Unmarshal(audienceJSON, &refreshToken.Audience); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(audienceJSON): %w", err)
-	}
-	if err := json.Unmarshal(scopesJSON, &refreshToken.Scopes); err != nil {
-		return nil, fmt.Errorf("json.Unmarshal(scopesJSON): %w", err)
+		return nil, fmt.Errorf("refreshToken.ScanRow(SearchRefreshTokenByID): %w", err)
 	}
 
 	return &refreshToken, nil

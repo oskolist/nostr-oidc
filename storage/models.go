@@ -116,6 +116,50 @@ func (c *Client) ClockSkew() time.Duration {
 	return c.clockSkew
 }
 
+// ScanRow implements a pgx-style row scanner for Client
+// This method scans a database row directly into the Client struct fields
+// Expected column order: id, secret, redirect_uris, application_type, auth_method, response_types,
+// grant_types, access_token_type, dev_mode, id_token_userinfo_claims_assertion, clock_skew,
+// post_logout_redirect_uri_globs, redirect_uri_globs
+func (c *Client) ScanRow(row interface{ Scan(...interface{}) error }) error {
+	var applicationTypeInt, accessTokenTypeInt int
+	var clockSkewNanos int64
+	var redirectURIsJSON, responseTypesJSON, grantTypesJSON, postLogoutRedirectURIsJSON, redirectURIsGlobsJSON []byte
+
+	err := row.Scan(
+		&c.id, &c.secret, &redirectURIsJSON, &applicationTypeInt, &c.authMethod,
+		&responseTypesJSON, &grantTypesJSON, &accessTokenTypeInt, &c.devMode,
+		&c.idTokenUserinfoClaimsAssertion, &clockSkewNanos, &postLogoutRedirectURIsJSON, &redirectURIsGlobsJSON,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Convert integers back to enum types
+	c.applicationType = op.ApplicationType(applicationTypeInt)
+	c.accessTokenType = op.AccessTokenType(accessTokenTypeInt)
+	c.clockSkew = time.Duration(clockSkewNanos)
+
+	// Unmarshal JSON fields
+	if err := json.Unmarshal(redirectURIsJSON, &c.redirectURIs); err != nil {
+		return fmt.Errorf("json.Unmarshal(redirectURIs): %w", err)
+	}
+	if err := json.Unmarshal(responseTypesJSON, &c.responseTypes); err != nil {
+		return fmt.Errorf("json.Unmarshal(responseTypes): %w", err)
+	}
+	if err := json.Unmarshal(grantTypesJSON, &c.grantTypes); err != nil {
+		return fmt.Errorf("json.Unmarshal(grantTypes): %w", err)
+	}
+	if err := json.Unmarshal(postLogoutRedirectURIsJSON, &c.postLogoutRedirectURIGlobs); err != nil {
+		return fmt.Errorf("json.Unmarshal(postLogoutRedirectURIGlobs): %w", err)
+	}
+	if err := json.Unmarshal(redirectURIsGlobsJSON, &c.redirectURIGlobs); err != nil {
+		return fmt.Errorf("json.Unmarshal(redirectURIGlobs): %w", err)
+	}
+
+	return nil
+}
+
 type Token struct {
 	ID             string
 	ApplicationID  string
@@ -124,6 +168,31 @@ type Token struct {
 	Audience       []string
 	Expiration     time.Time
 	Scopes         []string
+}
+
+// ScanRow implements a pgx-style row scanner for Token
+// This method scans a database row directly into the Token struct fields
+// Expected column order: id, application_id, subject, refresh_token_id, audience, expiration, scopes
+func (t *Token) ScanRow(row interface{ Scan(...interface{}) error }) error {
+	var audienceJSON, scopesJSON []byte
+
+	err := row.Scan(
+		&t.ID, &t.ApplicationID, &t.Subject, &t.RefreshTokenID,
+		&audienceJSON, &t.Expiration, &scopesJSON,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Unmarshal JSON fields
+	if err := json.Unmarshal(audienceJSON, &t.Audience); err != nil {
+		return fmt.Errorf("json.Unmarshal(audienceJSON): %w", err)
+	}
+	if err := json.Unmarshal(scopesJSON, &t.Scopes); err != nil {
+		return fmt.Errorf("json.Unmarshal(scopesJSON): %w", err)
+	}
+
+	return nil
 }
 
 type RefreshToken struct {
@@ -137,6 +206,35 @@ type RefreshToken struct {
 	Expiration    time.Time
 	Scopes        []string
 	AccessToken   string // Token.ID
+}
+
+// ScanRow implements a pgx-style row scanner for RefreshToken
+// This method scans a database row directly into the RefreshToken struct fields
+// Expected column order: id, token, auth_time, amr, audience, user_id, application_id, expiration, scopes, access_token
+func (rt *RefreshToken) ScanRow(row interface{ Scan(...interface{}) error }) error {
+	var amrJSON, audienceJSON, scopesJSON []byte
+
+	err := row.Scan(
+		&rt.ID, &rt.Token, &rt.AuthTime, &amrJSON,
+		&audienceJSON, &rt.UserID, &rt.ApplicationID, &rt.Expiration,
+		&scopesJSON, &rt.AccessToken,
+	)
+	if err != nil {
+		return err
+	}
+
+	// Unmarshal JSON fields
+	if err := json.Unmarshal(amrJSON, &rt.AMR); err != nil {
+		return fmt.Errorf("json.Unmarshal(amrJSON): %w", err)
+	}
+	if err := json.Unmarshal(audienceJSON, &rt.Audience); err != nil {
+		return fmt.Errorf("json.Unmarshal(audienceJSON): %w", err)
+	}
+	if err := json.Unmarshal(scopesJSON, &rt.Scopes); err != nil {
+		return fmt.Errorf("json.Unmarshal(scopesJSON): %w", err)
+	}
+
+	return nil
 }
 
 type User struct {
