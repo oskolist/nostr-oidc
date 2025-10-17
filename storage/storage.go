@@ -172,17 +172,6 @@ func (s *Storage) DeleteAuthRequest(ctx context.Context, id string) error {
 // CreateAccessToken implements the op.Storage interface
 // it will be called for all requests able to return an access token (Authorization Code Flow, Implicit Flow, JWT Profile, ...)
 func (s *Storage) CreateAccessToken(ctx context.Context, request op.TokenRequest) (string, time.Time, error) {
-	// Generate new access token ID
-	tokenID := uuid.NewString()
-
-	// We'll implement a simplified approach similar to what was in the old comment
-	// For this implementation, we'll:
-	// 1. Create a new token based on the request context
-	// 2. Store it in the database
-	// 3. Return token ID and expiration
-
-	now := time.Now()
-	expiration := now.Add(1 * time.Hour) // 1 hour expiration
 
 	// Determine the application ID and other necessary information from the request
 	var applicationID string
@@ -219,35 +208,130 @@ func (s *Storage) CreateAccessToken(ctx context.Context, request op.TokenRequest
 	}
 	defer tx.Rollback()
 
-	// Create the access token in the database
-	token := &Token{
-		ID:             tokenID,
-		ApplicationID:  applicationID,
-		Subject:        subject,
-		RefreshTokenID: "", // Not relevant for access-only token
-		Audience:       audience,
-		Expiration:     expiration,
-		Scopes:         scopes,
-	}
-
-	err = s.db.AddToken(tx, token)
+	token, err := s.accessToken(tx, applicationID, "", subject, audience, scopes)
 	if err != nil {
-		return "", time.Time{}, fmt.Errorf("s.db.AddToken(tx, token). %+v", err)
+		return "", time.Time{}, fmt.Errorf(`s.accessToken(ctx, applicationID, "", subject, audience, scopes). %w`, err)
 	}
-
 	err = tx.Commit()
 	if err != nil {
 		return "", time.Time{}, fmt.Errorf("tx.Commit(). %+v", err)
 	}
 
-	return tokenID, expiration, nil
+	return token.ID, token.Expiration, nil
+}
+
+func (s *Storage) createRefreshToken(tx *sql.Tx, accessToken *Token, amr []string, authTime time.Time) (string, error) {
+	token := RefreshToken{
+		ID:            accessToken.RefreshTokenID,
+		Token:         accessToken.RefreshTokenID,
+		AuthTime:      authTime,
+		AMR:           amr,
+		ApplicationID: accessToken.ApplicationID,
+		UserID:        accessToken.Subject,
+		Audience:      accessToken.Audience,
+		Expiration:    time.Now().Add(5 * time.Hour),
+		Scopes:        accessToken.Scopes,
+		AccessToken:   accessToken.ID,
+	}
+
+	err := s.db.AddRefreshToken(tx, &token)
+	if err != nil {
+		return "", fmt.Errorf("s.db.AddRefreshToken(tx, &token). %+v", err)
+	}
+
+	return token.Token, nil
+}
+func (s *Storage) accessToken(tx *sql.Tx, applicationID, refreshTokenID, subject string, audience, scopes []string) (*Token, error) {
+	token := Token{
+		ID:             uuid.NewString(),
+		ApplicationID:  applicationID,
+		RefreshTokenID: refreshTokenID,
+		Subject:        subject,
+		Audience:       audience,
+		Expiration:     time.Now().Add(5 * time.Minute),
+		Scopes:         scopes,
+	}
+
+	err := s.db.AddToken(tx, &token)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.AddRefreshToken(tx, &token). %+v", err)
+	}
+
+	return &token, nil
+}
+
+func (s *Storage) exchangeRefreshToken(tx *sql.Tx, request op.TokenExchangeRequest) (accessTokenID string, newRefreshToken string, expiration time.Time, err error) {
+	applicationID := request.GetClientID()
+	authTime := request.GetAuthTime()
+
+	refreshTokenID := uuid.NewString()
+	accessToken, err := s.accessToken(tx, applicationID, refreshTokenID, request.GetSubject(), request.GetAudience(), request.GetScopes())
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+
+	refreshToken, err := s.createRefreshToken(tx, accessToken, nil, authTime)
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+
+	return accessToken.ID, refreshToken, accessToken.Expiration, nil
+}
+
+// getInfoFromRequest returns the clientID, authTime and amr depending on the op.TokenRequest type / implementation
+func getInfoFromRequest(req op.TokenRequest) (clientID string, authTime time.Time, amr []string) {
+	authReq, ok := req.(*AuthRequest) // Code Flow (with scope offline_access)
+	if ok {
+		return authReq.ApplicationID, authReq.authTime, authReq.GetAMR()
+	}
+	refreshReq, ok := req.(*RefreshTokenRequest) // Refresh Token Request
+	if ok {
+		return refreshReq.ApplicationID, refreshReq.AuthTime, refreshReq.AMR
+	}
+	deviceReq, ok := req.(*op.DeviceAuthorizationState) // Refresh Token Request
+	if ok {
+		return deviceReq.ClientID, deviceReq.Expires, deviceReq.AMR
+	}
+	return "", time.Time{}, nil
+}
+
+func (s *Storage) renewRefreshToken(tx *sql.Tx, currentRefreshToken, newRefreshToken, newAccessToken string) error {
+
+	refreshToken, err := s.db.SearchRefreshTokenByID(tx, currentRefreshToken)
+	if err != nil {
+		return fmt.Errorf("s.db.SearchRefreshTokenByID(currentRefreshToken). %w", err)
+	}
+
+	err = s.db.DeleteRefreshToken(tx, currentRefreshToken)
+	if err != nil {
+		return fmt.Errorf("s.db.DeleteRefreshToken(tx, currentRefreshToken). %w", err)
+	}
+	err = s.db.DeleteToken(tx, currentRefreshToken)
+	if err != nil {
+		return fmt.Errorf("s.db.DeleteToken(tx, currentRefreshToken). %w", err)
+	}
+
+	if refreshToken.Expiration.Before(time.Now()) {
+		return fmt.Errorf("expired refresh token")
+	}
+
+	// creates a new refresh token based on the current one
+	refreshToken.Token = newRefreshToken
+	refreshToken.ID = newRefreshToken
+	refreshToken.Expiration = time.Now().Add(5 * time.Hour)
+	refreshToken.AccessToken = newAccessToken
+
+	err = s.db.AddRefreshToken(tx, refreshToken)
+	if err != nil {
+		return fmt.Errorf("s.db.AddRefreshToken(tx, refreshToken). %w", err)
+	}
+
+	return nil
 }
 
 // CreateAccessAndRefreshTokens implements the op.Storage interface
 // it will be called for all requests able to return an access and refresh token (Authorization Code Flow, Refresh Token Request)
 func (s *Storage) CreateAccessAndRefreshTokens(ctx context.Context, request op.TokenRequest, currentRefreshToken string) (accessTokenID string, newRefreshToken string, expiration time.Time, err error) {
-	log.Printf("\n request.scopes: %+v", request.GetScopes())
-	log.Printf("\n request.audience: %+v", request.GetAudience())
 	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -255,213 +339,50 @@ func (s *Storage) CreateAccessAndRefreshTokens(ctx context.Context, request op.T
 	}
 	defer tx.Rollback()
 
+	// generate tokens via token exchange flow if request is relevant
+	if teReq, ok := request.(op.TokenExchangeRequest); ok {
+		return s.exchangeRefreshToken(tx, teReq)
+	}
+
+	// get the information depending on the request type / implementation
+	applicationID, authTime, amr := getInfoFromRequest(request)
+
+	// if currentRefreshToken is empty (Code Flow) we will have to create a new refresh token
 	if currentRefreshToken == "" {
-		// Code Flow: Create new refresh token and access token
-		accessTokenID = uuid.NewString()
-		newRefreshToken = uuid.NewString()
-
-		now := time.Now()
-		expiration := now.Add(1 * time.Hour)         // 1 hour for access token
-		refreshExpiration := now.Add(24 * time.Hour) // 24 hours for refresh token
-
-		// Get relevant information from request
-		var applicationID string
-		var subject string
-		var audience []string
-		var scopes []string
-
-		switch req := request.(type) {
-		case *AuthRequest:
-			applicationID = req.ApplicationID
-			subject = req.UserID
-			audience = req.Scopes // Use Scopes instead of Audience
-			scopes = req.Scopes
-		case op.TokenExchangeRequest:
-			applicationID = req.GetClientID()
-			subject = req.GetSubject()
-			audience = req.GetAudience()
-			scopes = req.GetScopes()
-		case *op.DeviceAuthorizationState:
-			applicationID = req.GetClientID()
-			subject = req.GetSubject()
-			audience = req.GetAudience()
-			scopes = req.GetScopes()
-		default:
-			err = fmt.Errorf("unsupported request type: %T", req)
+		refreshTokenID := uuid.NewString()
+		accessToken, err := s.accessToken(tx, applicationID, refreshTokenID, request.GetSubject(), request.GetAudience(), request.GetScopes())
+		if err != nil {
 			return "", "", time.Time{}, err
 		}
-
-		// Create access token in DB
-		accessToken := &Token{
-			ID:             accessTokenID,
-			ApplicationID:  applicationID,
-			Subject:        subject,
-			RefreshTokenID: newRefreshToken,
-			Audience:       audience,
-			Expiration:     expiration,
-			Scopes:         scopes,
-		}
-
-		log.Printf("\n accesstoken: %+v", accessToken)
-		err = s.db.AddToken(tx, accessToken)
+		refreshToken, err := s.createRefreshToken(tx, accessToken, amr, authTime)
 		if err != nil {
-			return "", "", time.Time{}, fmt.Errorf("s.db.AddToken(tx, accessToken). %+v", err)
+			return "", "", time.Time{}, err
 		}
-
-		// Create refresh token in DB
-		refreshToken := &RefreshToken{
-			ID:            newRefreshToken,
-			Token:         newRefreshToken, // Use ID as token for ownership
-			AuthTime:      now,
-			AMR:           []string{}, // Empty for now (was Amr -> AMR)
-			Audience:      audience,
-			UserID:        subject,
-			ApplicationID: applicationID,
-			Expiration:    refreshExpiration,
-			Scopes:        scopes,
-			AccessToken:   accessTokenID, // Link to access token
-		}
-
-		log.Printf("\n refreshToken: %+v", refreshToken)
-		err = s.db.AddRefreshToken(tx, refreshToken)
-		if err != nil {
-			return "", "", time.Time{}, fmt.Errorf("s.db.AddRefreshToken(tx, refreshToken). %+v", err)
-		}
-
-		// Commit transaction
 		err = tx.Commit()
 		if err != nil {
 			return "", "", time.Time{}, fmt.Errorf("tx.Commit(). %+v", err)
 		}
-
-		return accessTokenID, newRefreshToken, expiration, nil
-	} else {
-		// Refresh token flow: renew tokens
-		// For this simplified implementation, we'll create new refresh token ID but reuse old token data
-		newRefreshToken = uuid.NewString()
-
-		// Get current refresh token information
-		oldRefreshToken, err := s.db.SearchRefreshTokenByID(tx, currentRefreshToken)
-		if err != nil {
-			return "", "", time.Time{}, fmt.Errorf("s.db.SearchRefreshTokenByID(tx, %s). %+v", currentRefreshToken, err)
-		}
-
-		// Additional validation would go here in full implementation
-		// ...
-
-		// Create new access token
-		accessTokenID = uuid.NewString()
-		now := time.Now()
-		expiration := now.Add(1 * time.Hour)
-
-		accessToken := &Token{
-			ID:             accessTokenID,
-			ApplicationID:  oldRefreshToken.ApplicationID,
-			Subject:        oldRefreshToken.UserID,
-			RefreshTokenID: newRefreshToken,
-			Audience:       oldRefreshToken.Audience,
-			Expiration:     expiration,
-			Scopes:         oldRefreshToken.Scopes,
-		}
-
-		err = s.db.AddToken(tx, accessToken)
-		if err != nil {
-			return "", "", time.Time{}, fmt.Errorf("s.db.AddToken(tx, accessToken). %+v", err)
-		}
-
-		// Update refresh token to new ID
-		updatedRefreshToken := &RefreshToken{
-			ID:            newRefreshToken,
-			Token:         newRefreshToken,
-			AuthTime:      oldRefreshToken.AuthTime, // Keep original auth time
-			AMR:           oldRefreshToken.AMR,      // Changed from Amr to AMR
-			Audience:      oldRefreshToken.Audience,
-			UserID:        oldRefreshToken.UserID,
-			ApplicationID: oldRefreshToken.ApplicationID,
-			Expiration:    oldRefreshToken.Expiration, // Keep same expiration, but should be extended
-			Scopes:        oldRefreshToken.Scopes,
-			AccessToken:   accessTokenID,
-		}
-
-		err = s.db.AddRefreshToken(tx, updatedRefreshToken)
-		if err != nil {
-			return "", "", time.Time{}, fmt.Errorf("s.db.AddRefreshToken(tx, updatedRefreshToken). %+v", err)
-		}
-
-		// Commit transaction
-		err = tx.Commit()
-		if err != nil {
-			return "", "", time.Time{}, fmt.Errorf("tx.Commit(). %+v", err)
-		}
-
-		return accessTokenID, newRefreshToken, expiration, nil
-	}
-}
-
-func (s *Storage) exchangeRefreshToken(ctx context.Context, request op.TokenExchangeRequest) (accessTokenID string, newRefreshToken string, expiration time.Time, err error) {
-	// Start a transaction
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return "", "", time.Time{}, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
-	}
-	defer tx.Rollback()
-
-	// Get the current refresh token
-	currentRefreshToken, err := s.db.SearchRefreshTokenByID(tx, request.GetSubject())
-	if err != nil {
-		return "", "", time.Time{}, fmt.Errorf("s.db.SearchRefreshTokenByID(tx, %s). %+v", request.GetSubject(), err)
+		return accessToken.ID, refreshToken, accessToken.Expiration, nil
 	}
 
-	// Generate new tokens
-	accessTokenID = uuid.NewString()
+	// if we get here, the currentRefreshToken was not empty, so the call is a refresh token request
+	// we therefore will have to check the currentRefreshToken and renew the refresh token
 	newRefreshToken = uuid.NewString()
 
-	now := time.Now()
-	expiration = now.Add(1 * time.Hour)          // 1 hour for access token
-	refreshExpiration := now.Add(24 * time.Hour) // 24 hours for refresh token
-
-	// Create new access token
-	accessToken := &Token{
-		ID:             accessTokenID,
-		ApplicationID:  currentRefreshToken.ApplicationID,
-		Subject:        currentRefreshToken.UserID,
-		RefreshTokenID: newRefreshToken,
-		Audience:       currentRefreshToken.Audience,
-		Expiration:     expiration,
-		Scopes:         request.GetScopes(),
-	}
-
-	err = s.db.AddToken(tx, accessToken)
+	accessToken, err := s.accessToken(tx, applicationID, newRefreshToken, request.GetSubject(), request.GetAudience(), request.GetScopes())
 	if err != nil {
-		return "", "", time.Time{}, fmt.Errorf("s.db.AddToken(tx, accessToken). %+v", err)
+		return "", "", time.Time{}, err
 	}
 
-	// Create new refresh token
-	refreshToken := &RefreshToken{
-		ID:            newRefreshToken,
-		Token:         newRefreshToken, // Use ID as token for ownership
-		AuthTime:      now,
-		AMR:           []string{}, // Empty for now (was Amr -> AMR)
-		Audience:      currentRefreshToken.Audience,
-		UserID:        currentRefreshToken.UserID,
-		ApplicationID: currentRefreshToken.ApplicationID,
-		Expiration:    refreshExpiration,
-		Scopes:        request.GetScopes(),
-		AccessToken:   accessTokenID, // Link to access token
+	if err := s.renewRefreshToken(tx, currentRefreshToken, newRefreshToken, accessToken.ID); err != nil {
+		return "", "", time.Time{}, err
 	}
-
-	err = s.db.AddRefreshToken(tx, refreshToken)
-	if err != nil {
-		return "", "", time.Time{}, fmt.Errorf("s.db.AddRefreshToken(tx, refreshToken). %+v", err)
-	}
-
-	// Commit transaction
 	err = tx.Commit()
 	if err != nil {
 		return "", "", time.Time{}, fmt.Errorf("tx.Commit(). %+v", err)
 	}
 
-	return accessTokenID, newRefreshToken, expiration, nil
+	return accessToken.ID, newRefreshToken, accessToken.Expiration, nil
 }
 
 // TokenRequestByRefreshToken implements the op.Storage interface
@@ -621,8 +542,6 @@ func (s *Storage) RevokeToken(ctx context.Context, tokenIDOrToken string, userID
 // SigningKey implements the op.Storage interface
 // it will be called when creating the OpenID Provider
 func (s *Storage) SigningKey(ctx context.Context) (op.SigningKey, error) {
-	// // in this example the signing key is a static rsa.PrivateKey and the algorithm used is RS256
-	// // you would obviously have a more complex implementation and store / retrieve the key from your database as well
 	return &s.signingKey, nil
 }
 
@@ -632,14 +551,7 @@ func (s *Storage) SignatureAlgorithms(context.Context) ([]jose.SignatureAlgorith
 	return []jose.SignatureAlgorithm{s.signingKey.algorithm}, nil
 }
 
-// KeySet implements the op.Storage interface
-// it will be called to get the current (public) keys, among others for the keys_endpoint or for validating access_tokens on the userinfo_endpoint, ...
 func (s *Storage) KeySet(ctx context.Context) ([]op.Key, error) {
-	// // as mentioned above, this example only has a single signing key without key rotation,
-	// // so it will directly use its public key
-	// //
-	// // when using key rotation you typically would store the public keys alongside the private keys in your database
-	// // and give both of them an expiration date, with the public key having a longer lifetime
 	return []op.Key{&publicKey{s.signingKey}}, nil
 }
 
@@ -1087,7 +999,6 @@ func (s *Storage) CheckNostrEventSignature(event nostr.Event) error {
 }
 
 func (s *Storage) StoreDeviceAuthorization(ctx context.Context, clientID, deviceCode, userCode string, expires time.Time, scopes []string) error {
-	log.Printf("scopes: %+v", scopes)
 	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

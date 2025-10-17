@@ -41,6 +41,7 @@ func (l *login) createRouter(issuerInterceptor *op.IssuerInterceptor) {
 
 type authenticate interface {
 	CheckUserNpub(publicKey *btcec.PublicKey) error
+	CheckNostrEventSignature(event nostr.Event) error
 }
 
 func (l *login) loginHandler(w http.ResponseWriter, r *http.Request) {

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/securecookie"
 	"github.com/lescuer97/nostr-oicd/web/templates"
@@ -20,7 +22,6 @@ import (
 
 type deviceAuthenticate interface {
 	op.DeviceAuthorizationStorage
-	CheckNostrEventSignature(event nostr.Event) error
 
 	// GetDeviceAuthorizationByUserCode resturns the current state of the device authorization flow,
 	// identified by the user code.
@@ -36,11 +37,11 @@ type deviceAuthenticate interface {
 }
 
 type deviceLogin struct {
-	storage deviceAuthenticate
+	storage Storage
 	cookie  *securecookie.SecureCookie
 }
 
-func registerDeviceAuth(storage deviceAuthenticate, router chi.Router) {
+func registerDeviceAuth(storage Storage, router chi.Router) {
 	l := &deviceLogin{
 		storage: storage,
 		cookie:  securecookie.New(securecookie.GenerateRandomKey(32), nil),
@@ -116,6 +117,35 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 		redirectBack(w, r, err.Error())
 		return
 	}
+
+	pbBytes, err := hex.DecodeString(nostrEvent.PubKey)
+	if err != nil {
+		slog.Error(
+			"hex.DecodeString(nostrEvent.PubKey)",
+			slog.String("error", err.Error()),
+		)
+		redirectBack(w, r, err.Error())
+		return
+	}
+	_, err = schnorr.ParsePubKey(pbBytes)
+	if err != nil {
+		slog.Error(
+			"schnorr.ParsePubKey(pbBytes)",
+			slog.String("error", err.Error()),
+		)
+		redirectBack(w, r, err.Error())
+		return
+	}
+
+	// err = d.storage.CheckUserNpub(pubkey)
+	// if err != nil {
+	// 	slog.Error(
+	// 		"d.storage.CheckUserNpub(pubkey)",
+	// 		slog.String("error", err.Error()),
+	// 	)
+	// 	redirectBack(w, r, err.Error())
+	// 	return
+	// }
 
 	state, err := d.storage.GetDeviceAuthorizationByUserCode(r.Context(), nostrEvent.Content)
 	if err != nil {
