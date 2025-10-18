@@ -1,0 +1,384 @@
+package templates
+
+import (
+	"fmt"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
+)
+
+// ClientFormData holds the data needed to render the client form
+type ClientFormData struct {
+	ClientID                   string
+	RedirectURIs               []string
+	ApplicationType            int
+	ResponseTypes              []string
+	GrantTypes                 []string
+	AccessTokenType            int
+	PostLogoutRedirectURIGlobs []string
+	RedirectURIGlobs           []string
+}
+
+// ClientFormPage renders the full page with the client form
+templ ClientFormPage(client *ClientFormData) {
+	@Layout("Client Configuration") {
+		@ClientForm(client)
+	}
+}
+
+// ClientForm renders the main client configuration form
+templ ClientForm(client *ClientFormData) {
+	<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+		<div class="max-w-4xl mx-auto">
+			<!-- Header -->
+			<div class="mb-8">
+				<h1 class="text-3xl font-bold text-gray-900">OAuth/OIDC Client Configuration</h1>
+				<p class="mt-2 text-lg text-gray-600">Configure your OAuth 2.0 and OpenID Connect client settings</p>
+			</div>
+			<!-- Form -->
+			<form
+				hx-post={ getFormEndpoint(client) }
+				hx-target="#formDialog"
+				hx-swap="delete"
+				class="bg-white rounded-xl shadow-lg p-8 space-y-8"
+			>
+				<!-- Section 1: Basic Configuration -->
+				<div class="border-b border-gray-200 pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 mb-6">Basic Configuration</h2>
+					<!-- Client ID -->
+					<div class="mb-6">
+						if client != nil {
+							@TextInput("client_id", "Client ID", "app_client_123", client.ClientID, true, "Unique identifier for your client application")
+						} else {
+							@TextInput("client_id", "Client ID", "app_client_123", "", true, "Unique identifier for your client application")
+						}
+					</div>
+					<!-- Application Type -->
+					<div class="mb-6">
+						if client != nil {
+							@SelectInput("application_type", "Application Type", ApplicationTypeOptions(), fmt.Sprintf("%d", client.ApplicationType), true, "Choose the application type - web, user agent, or native")
+						} else {
+							@SelectInput("application_type", "Application Type", ApplicationTypeOptions(), "0", true, "Choose the application type - web, user agent, or native")
+						}
+					</div>
+				</div>
+				<!-- Section 2: Redirect URIs -->
+				<div class="border-b border-gray-200 pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 mb-6">Redirect Configuration</h2>
+					<!-- Redirect URIs -->
+					<div class="mb-6">
+						if client != nil {
+							@MultipleInputList("redirect_uris", "Redirect URIs", client.RedirectURIs, "https://example.com/callback", true, "OAuth redirect URIs where tokens will be sent")
+						} else {
+							@MultipleInputList("redirect_uris", "Redirect URIs", []string{}, "https://example.com/callback", true, "OAuth redirect URIs where tokens will be sent")
+						}
+					</div>
+					<!-- Redirect URI Globs -->
+					<div class="mb-6">
+						if client != nil {
+							@MultipleInputList("redirect_uri_globs", "Redirect URI Globs", client.RedirectURIGlobs, "https://example.com/*", false, "Glob patterns for redirect URI matching")
+						} else {
+							@MultipleInputList("redirect_uri_globs", "Redirect URI Globs", []string{}, "https://example.com/*", false, "Glob patterns for redirect URI matching")
+						}
+					</div>
+					<!-- Post Logout Redirect URI Globs -->
+					<div class="mb-6">
+						if client != nil {
+							@MultipleInputList("post_logout_redirect_uri_globs", "Post Logout Redirect URI Globs", client.PostLogoutRedirectURIGlobs, "https://example.com/logout", false, "Glob patterns for post-logout redirect URIs")
+						} else {
+							@MultipleInputList("post_logout_redirect_uri_globs", "Post Logout Redirect URI Globs", []string{}, "https://example.com/logout", false, "Glob patterns for post-logout redirect URIs")
+						}
+					</div>
+				</div>
+				<!-- Section 3: OIDC Response Types -->
+				<div class="border-b border-gray-200 pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 mb-6">Response Types</h2>
+					<p class="text-sm text-gray-600 mb-4">Select the OpenID Connect response types your application supports</p>
+					if client != nil {
+						@CheckboxGroup("response_types", ResponseTypeOptions(), client.ResponseTypes)
+					} else {
+						@CheckboxGroup("response_types", ResponseTypeOptions(), []string{})
+					}
+				</div>
+				<!-- Section 4: Token Configuration -->
+				<div class="border-b border-gray-200 pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 mb-6">Token Configuration</h2>
+					<!-- Grant Types -->
+					<div class="mb-6">
+						if client != nil && len(client.GrantTypes) > 0 {
+							@SelectInput("grant_types", "Grant Types", GrantTypeOptions(), client.GrantTypes[0], true, "OAuth 2.0 grant type for token exchange")
+						} else {
+							@SelectInput("grant_types", "Grant Types", GrantTypeOptions(), "", true, "OAuth 2.0 grant type for token exchange")
+						}
+					</div>
+					<!-- Access Token Type -->
+					<div class="mb-6">
+						if client != nil {
+							@SelectInput("access_token_type", "Access Token Type", AccessTokenTypeOptions(), fmt.Sprintf("%d", client.AccessTokenType), true, "Type of access token to issue (Bearer or JWT)")
+						} else {
+							@SelectInput("access_token_type", "Access Token Type", AccessTokenTypeOptions(), "0", true, "Type of access token to issue (Bearer or JWT)")
+						}
+					</div>
+				</div>
+				<!-- Form Actions -->
+				<div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
+					<button
+						type="button"
+						onclick="window.history.back()"
+						class="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+					>
+						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+						</svg>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						class="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-md hover:shadow-lg"
+					>
+						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+						</svg>
+						if client == nil {
+							Create Client
+						} else {
+							Save Configuration
+						}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+}
+
+// ========== Form Field Components ==========
+
+// TextInput renders a text input field
+templ TextInput(name, label, placeholder, value string, required bool, helpText string) {
+	<div>
+		<label for={ name } class="block text-sm font-medium text-gray-700 mb-2">
+			{ label }
+			if required {
+				<span class="text-red-500 ml-1">*</span>
+			}
+		</label>
+		<input
+			type="text"
+			id={ name }
+			name={ name }
+			placeholder={ placeholder }
+			value={ value }
+			if required {
+				required
+			}
+			class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-gray-50 focus:bg-white"
+		/>
+		if helpText != "" {
+			<p class="text-xs text-gray-500 mt-1">{ helpText }</p>
+		}
+	</div>
+}
+
+// SelectInput renders a select dropdown field
+templ SelectInput(name, label string, options []SelectOption, value string, required bool, helpText string) {
+	<div>
+		<label for={ name } class="block text-sm font-medium text-gray-700 mb-2">
+			{ label }
+			if required {
+				<span class="text-red-500 ml-1">*</span>
+			}
+		</label>
+		<select
+			id={ name }
+			name={ name }
+			if required {
+				required
+			}
+			class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white focus:bg-white appearance-none cursor-pointer"
+			style="background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22rgb(107,114,128)%22 stroke-width=%222%22><path d=%22M6 9l6 6 6-6%22/></svg>'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1.5em 1.5em; padding-right: 2.5rem;"
+		>
+			<option value="">Select an option</option>
+			for _, opt := range options {
+				<option value={ opt.Value } selected={ opt.Value == value }>
+					{ opt.Label }
+				</option>
+			}
+		</select>
+		if helpText != "" {
+			<p class="text-xs text-gray-500 mt-1">{ helpText }</p>
+		}
+	</div>
+}
+
+// CheckboxGroup renders a group of checkboxes
+templ CheckboxGroup(name string, options []CheckboxOption, selectedValues []string) {
+	<div class="space-y-3">
+		for _, opt := range options {
+			<div class="flex items-center">
+				@Checkbox(name, opt.Value, opt.Label, contains(selectedValues, opt.Value))
+			</div>
+		}
+	</div>
+}
+
+// Checkbox renders a single checkbox input
+templ Checkbox(name, value, label string, checked bool) {
+	<div class="flex items-center">
+		<input
+			type="checkbox"
+			id={ name + "_" + value }
+			name={ name }
+			value={ value }
+			if checked {
+				checked
+			}
+			class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+		/>
+		<label for={ name + "_" + value } class="ml-3 text-sm font-medium text-gray-700 cursor-pointer">
+			{ label }
+		</label>
+	</div>
+}
+
+// MultipleInputList renders a single input field with a list of values below
+templ MultipleInputList(name, label string, values []string, placeholder string, required bool, helpText string) {
+	<div>
+		<label class="block text-sm font-medium text-gray-700 mb-2">
+			{ label }
+			if required {
+				<span class="text-red-500 ml-1">*</span>
+			}
+		</label>
+		<!-- Single input with add button -->
+		<div class="flex items-center space-x-2 mb-3">
+			<input
+				type="text"
+				id={ name + "_input" }
+				placeholder={ placeholder }
+				class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-gray-50 focus:bg-white"
+			/>
+			<button
+				type="button"
+				data-action="add"
+				data-input-name={ name }
+				class="inline-flex items-center justify-center px-4 py-3 rounded-lg border border-green-300 bg-green-50 text-green-700 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors add-input-btn"
+			>
+				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+				</svg>
+			</button>
+		</div>
+		<!-- List of added values -->
+		<div
+			id={ name + "_container" }
+			class="space-y-2"
+		>
+			if len(values) == 0 {
+				<div class="text-sm text-gray-500 italic py-2">
+					No items added yet
+				</div>
+			} else {
+				for _, val := range values {
+					<div class="flex items-center justify-between px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg input-item">
+						<input
+							type="hidden"
+							name={ name }
+							value={ val }
+						/>
+						<span class="text-sm text-gray-700">{ val }</span>
+						<button
+							type="button"
+							class="inline-flex items-center justify-center px-2 py-1 rounded border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors remove-input-btn"
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+							</svg>
+						</button>
+					</div>
+				}
+			}
+		</div>
+		if helpText != "" {
+			<p class="text-xs text-gray-500 mt-1">{ helpText }</p>
+		}
+	</div>
+}
+
+// ========== Helper Types and Functions ==========
+
+type SelectOption struct {
+	Label string
+	Value string
+}
+
+type CheckboxOption struct {
+	Label string
+	Value string
+}
+
+// ApplicationTypeOptions returns the available application types
+func ApplicationTypeOptions() []SelectOption {
+	return []SelectOption{
+		{Label: "Web Application", Value: "0"},
+		{Label: "User Agent (SPA)", Value: "1"},
+		{Label: "Native Application", Value: "2"},
+	}
+}
+
+// AccessTokenTypeOptions returns the available access token types
+func AccessTokenTypeOptions() []SelectOption {
+	return []SelectOption{
+		{Label: "Bearer Token", Value: "0"},
+		{Label: "JWT Token", Value: "1"},
+	}
+}
+
+// GrantTypeOptions returns the available grant types
+func GrantTypeOptions() []SelectOption {
+	grants := oidc.AllGrantTypes
+	options := make([]SelectOption, 0, len(grants))
+	for _, g := range grants {
+		options = append(options, SelectOption{
+			Label: string(g),
+			Value: string(g),
+		})
+	}
+	return options
+}
+
+// ResponseTypeOptions returns the available response types
+func ResponseTypeOptions() []CheckboxOption {
+	responseTypes := []string{
+		"code",
+		"id_token",
+		"token",
+		"id_token token",
+		"code id_token",
+		"code token",
+		"code id_token token",
+	}
+	options := make([]CheckboxOption, 0, len(responseTypes))
+	for _, rt := range responseTypes {
+		options = append(options, CheckboxOption{
+			Label: rt,
+			Value: rt,
+		})
+	}
+	return options
+}
+
+// Helper function to check if a value exists in a slice
+func contains(slice []string, value string) bool {
+	for _, item := range slice {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}
+
+// getFormEndpoint determines the form submission endpoint based on whether the client is nil
+func getFormEndpoint(client *ClientFormData) string {
+	if client == nil {
+		return "add_client"
+	}
+	return fmt.Sprintf("client/%s", client.ClientID)
+}

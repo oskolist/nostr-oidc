@@ -12,12 +12,16 @@ import { initCertCopy } from './modules/certs.js';
 // Form behavior (editable card names)
 import { initCardInputs } from './modules/forms.js';
 
+// Client form functionality
+import { initClientForm } from './modules/client-form.js';
+
 // Initialize everything when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   initLogin();
   initSignup();
   initCertCopy();
   initCardInputs();
+  initClientForm();
 });
 
 // Re-init card inputs after HTMX swaps (new fragments)
@@ -26,6 +30,7 @@ if (typeof document !== 'undefined') {
     const root = e && e.target ? e.target : document;
     initCardInputs(root);
     initSignup();
+    initClientForm(root);
   });
 }
 

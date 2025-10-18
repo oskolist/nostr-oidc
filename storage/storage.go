@@ -63,18 +63,18 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, authReq *oidc.AuthReque
 	//
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	err = s.db.AddAuthRequest(tx, request)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	return request, nil
@@ -85,18 +85,18 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, authReq *oidc.AuthReque
 func (s *Storage) AuthRequestByID(ctx context.Context, id string) (op.AuthRequest, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	authReq, err := s.db.SearchAuthRequestByID(tx, id)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
 	return authReq, nil
 }
@@ -106,18 +106,18 @@ func (s *Storage) AuthRequestByID(ctx context.Context, id string) (op.AuthReques
 func (s *Storage) AuthRequestByCode(ctx context.Context, code string) (op.AuthRequest, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	authReq, err := s.db.SearchAuthRequestByID(tx, code)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
 	return authReq, nil
 }
@@ -128,19 +128,19 @@ func (s *Storage) AuthRequestByCode(ctx context.Context, code string) (op.AuthRe
 func (s *Storage) SaveAuthCode(ctx context.Context, id string, code string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	// Update the auth request to include the code challenge
 	err = s.db.SaveAuthCode(tx, id, code)
 	if err != nil {
-		return fmt.Errorf("s.db.SaveAuthCode(tx, %s, %s). %+v", id, code, err)
+		return fmt.Errorf("s.db.SaveAuthCode(tx, %s, %s). %w", id, code, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 	return nil
 }
@@ -152,18 +152,18 @@ func (s *Storage) SaveAuthCode(ctx context.Context, id string, code string) erro
 func (s *Storage) DeleteAuthRequest(ctx context.Context, id string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	err = s.db.DeleteAuthRequest(tx, id)
 	if err != nil {
-		return fmt.Errorf("s.db.DeleteAuthRequest(tx, id). %+v", err)
+		return fmt.Errorf("s.db.DeleteAuthRequest(tx, id). %w", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 	return nil
 
@@ -204,7 +204,7 @@ func (s *Storage) CreateAccessToken(ctx context.Context, request op.TokenRequest
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return "", time.Time{}, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return "", time.Time{}, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
@@ -214,7 +214,7 @@ func (s *Storage) CreateAccessToken(ctx context.Context, request op.TokenRequest
 	}
 	err = tx.Commit()
 	if err != nil {
-		return "", time.Time{}, fmt.Errorf("tx.Commit(). %+v", err)
+		return "", time.Time{}, fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	return token.ID, token.Expiration, nil
@@ -236,7 +236,7 @@ func (s *Storage) createRefreshToken(tx *sql.Tx, accessToken *Token, amr []strin
 
 	err := s.db.AddRefreshToken(tx, &token)
 	if err != nil {
-		return "", fmt.Errorf("s.db.AddRefreshToken(tx, &token). %+v", err)
+		return "", fmt.Errorf("s.db.AddRefreshToken(tx, &token). %w", err)
 	}
 
 	return token.Token, nil
@@ -254,7 +254,7 @@ func (s *Storage) accessToken(tx *sql.Tx, applicationID, refreshTokenID, subject
 
 	err := s.db.AddToken(tx, &token)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.AddRefreshToken(tx, &token). %+v", err)
+		return nil, fmt.Errorf("s.db.AddRefreshToken(tx, &token). %w", err)
 	}
 
 	return &token, nil
@@ -335,7 +335,7 @@ func (s *Storage) CreateAccessAndRefreshTokens(ctx context.Context, request op.T
 	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return "", "", time.Time{}, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return "", "", time.Time{}, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
@@ -360,7 +360,7 @@ func (s *Storage) CreateAccessAndRefreshTokens(ctx context.Context, request op.T
 		}
 		err = tx.Commit()
 		if err != nil {
-			return "", "", time.Time{}, fmt.Errorf("tx.Commit(). %+v", err)
+			return "", "", time.Time{}, fmt.Errorf("tx.Commit(). %w", err)
 		}
 		return accessToken.ID, refreshToken, accessToken.Expiration, nil
 	}
@@ -379,7 +379,7 @@ func (s *Storage) CreateAccessAndRefreshTokens(ctx context.Context, request op.T
 	}
 	err = tx.Commit()
 	if err != nil {
-		return "", "", time.Time{}, fmt.Errorf("tx.Commit(). %+v", err)
+		return "", "", time.Time{}, fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	return accessToken.ID, newRefreshToken, accessToken.Expiration, nil
@@ -390,18 +390,18 @@ func (s *Storage) CreateAccessAndRefreshTokens(ctx context.Context, request op.T
 func (s *Storage) TokenRequestByRefreshToken(ctx context.Context, refreshToken string) (op.RefreshTokenRequest, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	refreshTokenData, err := s.db.SearchRefreshTokenByID(tx, refreshToken)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.SearchRefreshTokenByID(tx, %s). %+v", refreshToken, err)
+		return nil, fmt.Errorf("s.db.SearchRefreshTokenByID(tx, %s). %w", refreshToken, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	// Return the refresh token request data using the wrapper function
@@ -414,25 +414,25 @@ func (s *Storage) TerminateSession(ctx context.Context, userID string, clientID 
 	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	// Delete all tokens matching user and client
 	err = s.db.DeleteTokensByUserAndClient(tx, userID, clientID)
 	if err != nil {
-		return fmt.Errorf("s.db.DeleteTokensByUserAndClient(tx, %s, %s). %+v", userID, clientID, err)
+		return fmt.Errorf("s.db.DeleteTokensByUserAndClient(tx, %s, %s). %w", userID, clientID, err)
 	}
 
 	// Delete all refresh tokens matching user and client
 	err = s.db.DeleteRefreshTokensByUserAndClient(tx, userID, clientID)
 	if err != nil {
-		return fmt.Errorf("s.db.DeleteRefreshTokensByUserAndClient(tx, %s, %s). %+v", userID, clientID, err)
+		return fmt.Errorf("s.db.DeleteRefreshTokensByUserAndClient(tx, %s, %s). %w", userID, clientID, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	return nil
@@ -443,18 +443,18 @@ func (s *Storage) TerminateSession(ctx context.Context, userID string, clientID 
 func (s *Storage) GetRefreshTokenInfo(ctx context.Context, clientID string, token string) (userID string, tokenID string, err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return "", "", fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return "", "", fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	refreshToken, err := s.db.SearchRefreshTokenByID(tx, token)
 	if err != nil {
-		return "", "", fmt.Errorf("s.db.SearchRefreshTokenByID(tx, %s). %+v", token, err)
+		return "", "", fmt.Errorf("s.db.SearchRefreshTokenByID(tx, %s). %w", token, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return "", "", fmt.Errorf("tx.Commit(). %+v", err)
+		return "", "", fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	return refreshToken.UserID, refreshToken.ID, nil
@@ -561,18 +561,18 @@ func (s *Storage) GetClientByClientID(ctx context.Context, clientID string) (op.
 	log.Printf("\n clientid: %+v", clientID)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	client, err := s.db.SearchClientByID(tx, clientID)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.SearchClientByID(tx, %s). %+v", clientID, err)
+		return nil, fmt.Errorf("s.db.SearchClientByID(tx, %s). %w", clientID, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
 	log.Printf("\n client: %+v", client)
 
@@ -585,18 +585,18 @@ func (s *Storage) GetClientByClientID(ctx context.Context, clientID string) (op.
 func (s *Storage) AuthorizeClientIDSecret(ctx context.Context, clientID, clientSecret string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	_, err = s.db.SearchClientByID(tx, clientID)
 	if err != nil {
-		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 	return nil
 }
@@ -607,19 +607,19 @@ func (s *Storage) SetUserinfoFromScopes(ctx context.Context, userinfo *oidc.User
 	// Start a transaction to fetch user data
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	// Fetch user from database
 	user, err := s.db.SearchUserByID(tx, userID)
 	if err != nil {
-		return fmt.Errorf("s.db.SearchUserByID(tx, %s). %+v", userID, err)
+		return fmt.Errorf("s.db.SearchUserByID(tx, %s). %w", userID, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	// Set the subject (always included)
@@ -688,25 +688,25 @@ func (s *Storage) SetUserinfoFromToken(ctx context.Context, userinfo *oidc.UserI
 	// Start a transaction to fetch user and token data
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	// Fetch user from database using the subject
 	user, err := s.db.SearchUserByID(tx, subject)
 	if err != nil {
-		return fmt.Errorf("s.db.SearchUserByID(tx, %s). %+v", subject, err)
+		return fmt.Errorf("s.db.SearchUserByID(tx, %s). %w", subject, err)
 	}
 
 	// Fetch token to get scopes
 	token, err := s.db.SearchTokenByID(tx, tokenID)
 	if err != nil {
-		return fmt.Errorf("s.db.SearchTokenByID(tx, %s). %+v", tokenID, err)
+		return fmt.Errorf("s.db.SearchTokenByID(tx, %s). %w", tokenID, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	// Set the subject (always included)
@@ -763,25 +763,25 @@ func (s *Storage) SetIntrospectionFromToken(ctx context.Context, introspection *
 	// Start a transaction to fetch token data
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	// Fetch token from database
 	token, err := s.db.SearchTokenByID(tx, tokenID)
 	if err != nil {
-		return fmt.Errorf("s.db.SearchTokenByID(tx, %s). %+v", tokenID, err)
+		return fmt.Errorf("s.db.SearchTokenByID(tx, %s). %w", tokenID, err)
 	}
 
 	// Fetch user to get additional information
 	user, err := s.db.SearchUserByID(tx, subject)
 	if err != nil {
-		return fmt.Errorf("s.db.SearchUserByID(tx, %s). %+v", subject, err)
+		return fmt.Errorf("s.db.SearchUserByID(tx, %s). %w", subject, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	// Populate introspection response
@@ -822,19 +822,19 @@ func (s *Storage) GetPrivateClaimsFromScopes(ctx context.Context, userID, client
 	// Start a transaction to fetch user data
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	// Fetch user from database
 	user, err := s.db.SearchUserByID(tx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.SearchUserByID(tx, %s). %+v", userID, err)
+		return nil, fmt.Errorf("s.db.SearchUserByID(tx, %s). %w", userID, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	// Initialize claims map
@@ -894,19 +894,19 @@ func (s *Storage) ValidateJWTProfileScopes(ctx context.Context, userID string, s
 	// Start a transaction to fetch user data
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	// Fetch user to check permissions
 	user, err := s.db.SearchUserByID(tx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.SearchUserByID(tx, %s). %+v", userID, err)
+		return nil, fmt.Errorf("s.db.SearchUserByID(tx, %s). %w", userID, err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	// Validate and filter scopes based on user permissions
@@ -947,19 +947,19 @@ func (s *Storage) Health(ctx context.Context) error {
 	// Check database connectivity by performing a simple query
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %+v", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	// Perform health check query
 	err = s.db.HealthCheck(tx)
 	if err != nil {
-		return fmt.Errorf("database health check failed: %+v", err)
+		return fmt.Errorf("database health check failed: %w", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("failed to commit health check transaction: %+v", err)
+		return fmt.Errorf("failed to commit health check transaction: %w", err)
 	}
 
 	return nil
@@ -968,18 +968,18 @@ func (s *Storage) CheckUserNpub(publicKey *btcec.PublicKey) error {
 
 	tx, err := s.db.BeginTx(context.Background(), nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	_, err = s.db.SearchUserByNpub(tx, publicKey)
 	if err != nil {
-		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 	return nil
 	// return nil
@@ -987,18 +987,18 @@ func (s *Storage) CheckUserNpub(publicKey *btcec.PublicKey) error {
 func (s *Storage) AddUser(user User) error {
 	tx, err := s.db.BeginTx(context.Background(), nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
 	err = s.db.AddUser(tx, &user)
 	if err != nil {
-		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %+v", err)
+		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 	return nil
 	// return nil
@@ -1009,7 +1009,7 @@ func (s *Storage) AddUser(user User) error {
 func (s *Storage) CheckNostrEventSignature(event nostr.Event) error {
 	valid, err := event.CheckSignature()
 	if err != nil {
-		return fmt.Errorf("event.CheckSignature(). %+v", err)
+		return fmt.Errorf("event.CheckSignature(). %w", err)
 	}
 	if !valid {
 		return fmt.Errorf("invalid signature")
@@ -1021,7 +1021,7 @@ func (s *Storage) StoreDeviceAuthorization(ctx context.Context, clientID, device
 	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
@@ -1056,13 +1056,13 @@ func (s *Storage) StoreDeviceAuthorization(ctx context.Context, clientID, device
 	// Store in database
 	err = s.db.AddDeviceAuthorization(tx, entry)
 	if err != nil {
-		return fmt.Errorf("s.db.AddDeviceAuthorization(tx, entry). %+v", err)
+		return fmt.Errorf("s.db.AddDeviceAuthorization(tx, entry). %w", err)
 	}
 
 	// Commit transaction
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	return nil
@@ -1077,7 +1077,7 @@ func (s *Storage) GetDeviceAuthorizatonState(ctx context.Context, clientID, devi
 	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
@@ -1095,7 +1095,7 @@ func (s *Storage) GetDeviceAuthorizatonState(ctx context.Context, clientID, devi
 	// Commit transaction
 	err = tx.Commit()
 	if err != nil {
-		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	return entry.state, nil
@@ -1105,7 +1105,7 @@ func (s *Storage) GetDeviceAuthorizationByUserCode(ctx context.Context, userCode
 	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
@@ -1118,7 +1118,7 @@ func (s *Storage) GetDeviceAuthorizationByUserCode(ctx context.Context, userCode
 	// Commit transaction
 	err = tx.Commit()
 	if err != nil {
-		return nil, fmt.Errorf("tx.Commit(). %+v", err)
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	return entry.state, nil
@@ -1128,7 +1128,7 @@ func (s *Storage) CompleteDeviceAuthorization(ctx context.Context, userCode, sub
 	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
@@ -1149,13 +1149,13 @@ func (s *Storage) CompleteDeviceAuthorization(ctx context.Context, userCode, sub
 	// Update the authorization with the subject and mark as done
 	err = s.db.UpdateDeviceAuthorizationSubject(tx, userCode, subject)
 	if err != nil {
-		return fmt.Errorf("s.db.UpdateDeviceAuthorizationSubject(tx, %s, %s). %+v", userCode, subject, err)
+		return fmt.Errorf("s.db.UpdateDeviceAuthorizationSubject(tx, %s, %s). %w", userCode, subject, err)
 	}
 
 	// Commit transaction
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	return nil
@@ -1165,7 +1165,7 @@ func (s *Storage) DenyDeviceAuthorization(ctx context.Context, userCode string) 
 	// Start a transaction
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %+v", err)
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
@@ -1187,13 +1187,13 @@ func (s *Storage) DenyDeviceAuthorization(ctx context.Context, userCode string) 
 	// Mark the authorization as denied
 	err = s.db.UpdateDeviceAuthorizationDenied(tx, userCode)
 	if err != nil {
-		return fmt.Errorf("s.db.UpdateDeviceAuthorizationDenied(tx, %s). %+v", userCode, err)
+		return fmt.Errorf("s.db.UpdateDeviceAuthorizationDenied(tx, %s). %w", userCode, err)
 	}
 
 	// Commit transaction
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %+v", err)
+		return fmt.Errorf("tx.Commit(). %w", err)
 	}
 
 	return nil
