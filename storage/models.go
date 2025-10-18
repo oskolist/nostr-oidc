@@ -116,6 +116,37 @@ func (c *Client) ClockSkew() time.Duration {
 	return c.clockSkew
 }
 
+// NewClient creates a new Client with the provided parameters
+func NewClient(
+	id string,
+	secret string,
+	redirectURIs []string,
+	applicationType op.ApplicationType,
+	authMethod oidc.AuthMethod,
+	responseTypes []oidc.ResponseType,
+	grantTypes []oidc.GrantType,
+	accessTokenType op.AccessTokenType,
+	redirectURIGlobs []string,
+	postLogoutRedirectURIGlobs []string,
+) *Client {
+	return &Client{
+		id:                             id,
+		secret:                         secret,
+		redirectURIs:                   redirectURIs,
+		applicationType:                applicationType,
+		authMethod:                     authMethod,
+		loginURL:                       func(id string) string { return "" }, // Default empty login URL
+		responseTypes:                  responseTypes,
+		grantTypes:                     grantTypes,
+		accessTokenType:                accessTokenType,
+		devMode:                        false,
+		idTokenUserinfoClaimsAssertion: false,
+		clockSkew:                      0,
+		postLogoutRedirectURIGlobs:     postLogoutRedirectURIGlobs,
+		redirectURIGlobs:               redirectURIGlobs,
+	}
+}
+
 // ScanRow implements a pgx-style row scanner for Client
 // This method scans a database row directly into the Client struct fields
 // Expected column order: id, secret, redirect_uris, application_type, auth_method, response_types,

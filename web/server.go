@@ -114,7 +114,7 @@ func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
 
 	adminRouter := NewAdminHandler(storage)
 	// router.Mount("/admin", http.StripPrefix("/admin", adminRouter))
-	router.Mount("/admin",  adminRouter)
+	router.Mount("/admin", adminRouter)
 
 	router.Route("/device", func(r chi.Router) {
 		registerDeviceAuth(storage, r)
