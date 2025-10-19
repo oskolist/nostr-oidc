@@ -46,9 +46,9 @@ templ ClientForm(client *ClientFormData) {
 					<!-- Client ID -->
 					<div class="mb-6">
 						if client != nil {
-							@TextInput("client_id", "Client ID", "app_client_123", client.ClientID, true, "Unique identifier for your client application")
+							@TextInput("client_id", "Client ID", "app_client_123", client.ClientID, true, "Unique identifier for your client application", true)
 						} else {
-							@TextInput("client_id", "Client ID", "app_client_123", "", true, "Unique identifier for your client application")
+							@TextInput("client_id", "Client ID", "app_client_123", "", true, "Unique identifier for your client application", false)
 						}
 					</div>
 					<!-- Application Type -->
@@ -157,7 +157,7 @@ templ ClientForm(client *ClientFormData) {
 // ========== Form Field Components ==========
 
 // TextInput renders a text input field
-templ TextInput(name, label, placeholder, value string, required bool, helpText string) {
+templ TextInput(name, label, placeholder, value string, required bool, helpText string, disabled bool) {
 	<div>
 		<label for={ name } class="block text-sm font-medium text-gray-700 mb-2">
 			{ label }
@@ -170,6 +170,7 @@ templ TextInput(name, label, placeholder, value string, required bool, helpText 
 			id={ name }
 			name={ name }
 			placeholder={ placeholder }
+			readonly?={ disabled }
 			value={ value }
 			if required {
 				required

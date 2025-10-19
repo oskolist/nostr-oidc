@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
@@ -14,8 +15,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/form/v4"
+	"github.com/lescuer97/nostr-oicd/storage"
 	"github.com/lescuer97/nostr-oicd/web/templates"
 )
+
+type administration interface {
+	AddClient(ctx context.Context, client storage.Client) error
+	EditClient(ctx context.Context, client storage.Client) error
+}
 
 // NewSignupHandler creates a new signup handler
 func NewAdminHandler(storage Storage) chi.Router {
@@ -84,8 +91,23 @@ func (s *adminHandler) addClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use the data
-	fmt.Printf( "Received user: %+v", user)
+	fmt.Printf("Received user: %+v", user)
 
+	client := templates.FormDataToStorageClient(&user, "")
+
+	if client == nil {
+		log.Panicf("client should have never been nil")
+	}
+
+	err := s.storage.AddClient(r.Context(), *client)
+	if err != nil {
+		slog.Error("s.storage.AddClient", slog.String("error", err.Error()))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not add client",
+			Type: notificationTypeError,
+		}, r, w)
+
+	}
 
 	// Success - show success message
 	writeHtmlNotification(templates.NotifInfo{
@@ -95,7 +117,57 @@ func (s *adminHandler) addClient(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
-	templates.ClientFormPage(nil).Render(r.Context(), w)
+	id := chi.URLParam(r, "id")
+	// Parse form data
+	if err := r.ParseForm(); err != nil {
+		slog.Error("Failed to parse form", slog.String("error", err.Error()))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Invalid form data",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	// Decode into your struct
+	var user templates.ClientFormData
+	if err := decoder.Decode(&user, r.Form); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	if id != user.ClientID {
+		slog.Error("trying to editing the wrong client")
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Trying to change a channel id without access",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	// Use the data
+	fmt.Printf("Received user: %+v", user)
+
+	client := templates.FormDataToStorageClient(&user, "")
+
+	if client == nil {
+		log.Panicf("client should have never been nil")
+	}
+	err := s.storage.EditClient(r.Context(), *client)
+	if err != nil {
+		slog.Error("s.storage.AddClient", slog.String("error", err.Error()))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not add client",
+			Type: notificationTypeError,
+		}, r, w)
+
+	}
+
+	// Success - show success message
+	writeHtmlNotification(templates.NotifInfo{
+		Msg:  "Client created successfully (database save pending implementation)",
+		Type: notificationTypeSuccess,
+	}, r, w)
+
 }
 
 // parseIntOrDefault parses a string to int, returning a default value on error

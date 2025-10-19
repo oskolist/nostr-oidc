@@ -301,6 +301,64 @@ func (s *storageDB) SearchClientByID(tx *sql.Tx, id string) (*Client, error) {
 	return &client, nil
 }
 
+// EditClient updates an existing client by ID with all fields
+func (s *storageDB) EditClient(tx *sql.Tx, client *Client) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+	if client == nil {
+		panic("client cannot be nil")
+	}
+
+	// Marshal slice fields to JSON
+	redirectURIsJSON, err := json.Marshal(client.redirectURIs)
+	if err != nil {
+		return fmt.Errorf("json.Marshal(redirectURIs): %w", err)
+	}
+	responseTypesJSON, err := json.Marshal(client.responseTypes)
+	if err != nil {
+		return fmt.Errorf("json.Marshal(responseTypes): %w", err)
+	}
+	grantTypesJSON, err := json.Marshal(client.grantTypes)
+	if err != nil {
+		return fmt.Errorf("json.Marshal(grantTypes): %w", err)
+	}
+	postLogoutRedirectURIsJSON, err := json.Marshal(client.postLogoutRedirectURIGlobs)
+	if err != nil {
+		return fmt.Errorf("json.Marshal(postLogoutRedirectURIGlobs): %w", err)
+	}
+	redirectURIsGlobsJSON, err := json.Marshal(client.redirectURIGlobs)
+	if err != nil {
+		return fmt.Errorf("json.Marshal(redirectURIGlobs): %w", err)
+	}
+
+	query := `
+		UPDATE clients SET
+			secret = ?, redirect_uris = ?, application_type = ?, auth_method = ?,
+			response_types = ?, grant_types = ?, access_token_type = ?, dev_mode = ?,
+			id_token_userinfo_claims_assertion = ?, clock_skew = ?,
+			post_logout_redirect_uri_globs = ?, redirect_uri_globs = ?
+		WHERE id = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("tx.Prepare(EditClient): %w", err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(
+		client.secret, string(redirectURIsJSON), int(client.applicationType),
+		string(client.authMethod), string(responseTypesJSON), string(grantTypesJSON),
+		int(client.accessTokenType), client.devMode, client.idTokenUserinfoClaimsAssertion,
+		client.clockSkew.Nanoseconds(), string(postLogoutRedirectURIsJSON), string(redirectURIsGlobsJSON),
+		client.id,
+	)
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(EditClient): %w", err)
+	}
+	return nil
+}
+
 // DeleteClient removes a client by ID
 func (s *storageDB) DeleteClient(tx *sql.Tx, id string) error {
 	if tx == nil {

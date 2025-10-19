@@ -1198,3 +1198,47 @@ func (s *Storage) DenyDeviceAuthorization(ctx context.Context, userCode string) 
 
 	return nil
 }
+
+func (s *Storage) AddClient(ctx context.Context, client Client) error {
+	// Start a transaction
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	// Verify that the user code exists
+	err = s.db.AddClient(tx, &client)
+	if err != nil {
+		return fmt.Errorf("could not add client: %w", err)
+	}
+	// Commit transaction
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %w", err)
+	}
+
+	return nil
+}
+
+func (s *Storage) EditClient(ctx context.Context, client Client) error {
+	// Start a transaction
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	// Verify that the user code exists
+	err = s.db.EditClient(tx, &client)
+	if err != nil {
+		return fmt.Errorf("could not add client: %w", err)
+	}
+	// Commit transaction
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %w", err)
+	}
+
+	return nil
+}

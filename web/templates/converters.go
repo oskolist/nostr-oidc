@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"github.com/lescuer97/nostr-oicd/storage"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
 )
@@ -19,6 +20,50 @@ func ClientToFormData(client op.Client) ClientFormData {
 		PostLogoutRedirectURIGlobs: []string{}, // Not exposed via op.Client interface
 		RedirectURIGlobs:           []string{}, // Not exposed via op.Client interface
 	}
+}
+
+// FormDataToStorageClient converts ClientFormData to a storage.Client struct.
+// This creates a new storage client with the form data, handling all necessary type conversions
+// from form integers to op.ApplicationType and op.AccessTokenType enums.
+//
+// The function requires a secret parameter (typically a newly generated client secret for new clients,
+// or the existing secret for updates). Empty slices will be preserved as empty (not nil).
+//
+// Usage pattern:
+//
+//	formData := &ClientFormData{...}
+//	clientSecret := generateSecret() // or retrieve existing secret
+//	storageClient := FormDataToStorageClient(formData, clientSecret)
+func FormDataToStorageClient(data *ClientFormData, secret string) *storage.Client {
+	if data == nil {
+		return nil
+	}
+
+	// Convert integer application type to op.ApplicationType
+	appType := op.ApplicationType(data.ApplicationType)
+
+	// Convert integer access token type to op.AccessTokenType
+	accessTokenType := op.AccessTokenType(data.AccessTokenType)
+
+	// Convert response type strings to oidc.ResponseType slice
+	responseTypes := StringsToResponseTypes(data.ResponseTypes)
+
+	// Convert grant type strings to oidc.GrantType slice
+	grantTypes := StringsToGrantTypes(data.GrantTypes)
+
+	// Create and return the storage.Client using the NewClient constructor
+	return storage.NewClient(
+		data.ClientID,
+		secret,
+		data.RedirectURIs,
+		appType,
+		oidc.AuthMethodNone, // Default to no authentication method, can be made configurable if needed
+		responseTypes,
+		grantTypes,
+		accessTokenType,
+		data.RedirectURIGlobs,
+		data.PostLogoutRedirectURIGlobs,
+	)
 }
 
 // FormDataToClient converts ClientFormData to form data suitable for storage operations.
@@ -40,8 +85,8 @@ func FormDataToClient(data *ClientFormData) ClientFormData {
 
 // ========== Helper Conversion Functions ==========
 
-// responseTypesToStrings converts []oidc.ResponseType to []string
-func responseTypesToStrings(responseTypes []oidc.ResponseType) []string {
+// ResponseTypesToStrings converts []oidc.ResponseType to []string
+func ResponseTypesToStrings(responseTypes []oidc.ResponseType) []string {
 	if len(responseTypes) == 0 {
 		return []string{}
 	}
@@ -53,8 +98,8 @@ func responseTypesToStrings(responseTypes []oidc.ResponseType) []string {
 	return result
 }
 
-// stringsToResponseTypes converts []string to []oidc.ResponseType
-func stringsToResponseTypes(responseTypeStrings []string) []oidc.ResponseType {
+// StringsToResponseTypes converts []string to []oidc.ResponseType
+func StringsToResponseTypes(responseTypeStrings []string) []oidc.ResponseType {
 	if len(responseTypeStrings) == 0 {
 		return []oidc.ResponseType{}
 	}
@@ -66,8 +111,8 @@ func stringsToResponseTypes(responseTypeStrings []string) []oidc.ResponseType {
 	return result
 }
 
-// grantTypesToStrings converts []oidc.GrantType to []string
-func grantTypesToStrings(grantTypes []oidc.GrantType) []string {
+// GrantTypesToStrings converts []oidc.GrantType to []string
+func GrantTypesToStrings(grantTypes []oidc.GrantType) []string {
 	if len(grantTypes) == 0 {
 		return []string{}
 	}
@@ -79,8 +124,8 @@ func grantTypesToStrings(grantTypes []oidc.GrantType) []string {
 	return result
 }
 
-// stringsToGrantTypes converts []string to []oidc.GrantType
-func stringsToGrantTypes(grantTypeStrings []string) []oidc.GrantType {
+// StringsToGrantTypes converts []string to []oidc.GrantType
+func StringsToGrantTypes(grantTypeStrings []string) []oidc.GrantType {
 	if len(grantTypeStrings) == 0 {
 		return []oidc.GrantType{}
 	}
@@ -90,6 +135,23 @@ func stringsToGrantTypes(grantTypeStrings []string) []oidc.GrantType {
 		result = append(result, oidc.GrantType(gt))
 	}
 	return result
+}
+
+// Keep private versions for internal use
+func responseTypesToStrings(responseTypes []oidc.ResponseType) []string {
+	return ResponseTypesToStrings(responseTypes)
+}
+
+func stringsToResponseTypes(responseTypeStrings []string) []oidc.ResponseType {
+	return StringsToResponseTypes(responseTypeStrings)
+}
+
+func grantTypesToStrings(grantTypes []oidc.GrantType) []string {
+	return GrantTypesToStrings(grantTypes)
+}
+
+func stringsToGrantTypes(grantTypeStrings []string) []oidc.GrantType {
+	return StringsToGrantTypes(grantTypeStrings)
 }
 
 // ========== Optional: Application Type and Access Token Type Converters ==========

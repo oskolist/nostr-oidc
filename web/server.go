@@ -25,6 +25,7 @@ type Storage interface {
 	op.Storage
 	authenticate
 	deviceAuthenticate
+	administration
 }
 
 //go:embed static/*
