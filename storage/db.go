@@ -459,6 +459,65 @@ func (s *storageDB) SearchUserByNpub(tx *sql.Tx, npub *btcec.PublicKey) (*User, 
 
 	return &user, nil
 }
+func (s *storageDB) SearchUserById(tx *sql.Tx, id string) (*User, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `SELECT id, npub, preferred_language, is_admin, active FROM users WHERE id = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return nil, fmt.Errorf("tx.Prepare(SearchUserByNpub): %w", err)
+	}
+	defer stmt.Close()
+
+	var user User
+	row := stmt.QueryRow(id)
+
+	err = user.ScanRow(row)
+	if err != nil {
+		return nil, fmt.Errorf("user.ScanRow(SearchUserByNpub): %w", err)
+	}
+
+	return &user, nil
+}
+
+// EditUser updates an existing user by ID with all fields
+func (s *storageDB) EditUser(tx *sql.Tx, user *User) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+	if user == nil {
+		panic("user cannot be nil")
+	}
+
+	// Serialize public key to bytes
+	var npubBytes []byte
+	if user.Npub != nil {
+		npubBytes = user.Npub.SerializeCompressed()
+	}
+
+	query := `
+		UPDATE users SET
+			npub = ?, preferred_language = ?, is_admin = ?, active = ?
+		WHERE id = ?`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("tx.Prepare(EditUser): %w", err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(
+		npubBytes, user.PreferredLanguage.String(), user.IsAdmin, user.Active,
+		user.ID,
+	)
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(EditUser): %w", err)
+	}
+	return nil
+}
 
 // DeleteUser removes a user by ID
 func (s *storageDB) DeleteUser(tx *sql.Tx, id string) error {

@@ -1,9 +1,16 @@
 package templates
 
 import (
+	"encoding/hex"
+	"errors"
+	"fmt"
+
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/lescuer97/nostr-oicd/storage"
+	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
+	"golang.org/x/text/language"
 )
 
 // ClientToFormData converts an op.Client interface to ClientFormData for form population.
@@ -176,4 +183,137 @@ func accessTokenTypeToString(att op.AccessTokenType) string {
 func stringToAccessTokenType(s string) op.AccessTokenType {
 	tokenType, _ := op.AccessTokenTypeString(s)
 	return tokenType
+}
+
+// ========== User Conversion Functions ==========
+
+// StorageUserToFormData converts a storage.User to UserFormData for form population.
+// Handles encoding of btcec.PublicKey to hex string and language.Tag to string.
+// If user is nil, returns an empty UserFormData.
+func StorageUserToFormData(user *storage.User) UserFormData {
+	if user == nil {
+		return UserFormData{}
+	}
+
+	npubStr := npubToString(user.Npub)
+
+	return UserFormData{
+		ID:                user.ID,
+		Npub:              npubStr,
+		PreferredLanguage: languageTagToString(user.PreferredLanguage),
+		IsAdmin:           user.IsAdmin,
+		Active:            user.Active,
+	}
+}
+
+// FormDataToStorageUser converts UserFormData to a storage.User struct.
+// Handles decoding of hex string to btcec.PublicKey and string to language.Tag.
+// Returns an error if conversion fails (invalid hex, invalid language tag, etc.).
+func FormDataToStorageUser(data *UserFormData) (*storage.User, error) {
+	if data == nil {
+		return nil, errors.New("user form data is nil")
+	}
+
+	// Parse Nostr public key
+	npub, err := stringToNpub(data.Npub)
+	if err != nil {
+		return nil, fmt.Errorf("invalid nostr public key: %w", err)
+	}
+
+	// Parse language tag
+	lang, err := stringToLanguageTag(data.PreferredLanguage)
+	if err != nil {
+		return nil, fmt.Errorf("invalid language tag: %w", err)
+	}
+
+	return &storage.User{
+		ID:                data.ID,
+		Npub:              npub,
+		PreferredLanguage: lang,
+		IsAdmin:           data.IsAdmin,
+		Active:            data.Active,
+	}, nil
+}
+
+// ========== Helper Functions for User Conversion ==========
+
+// npubToString encodes a btcec.PublicKey as a NIP19-encoded npub string (bech32 format).
+// Returns an empty string if the public key is nil.
+// The npub format is the standard Nostr public key encoding.
+func npubToString(npub *btcec.PublicKey) string {
+	if npub == nil {
+		return ""
+	}
+	// Convert public key to hex string
+	pubKeyHex := hex.EncodeToString(npub.SerializeCompressed())
+	// Encode as NIP19 npub format (bech32)
+	npubStr, err := nip19.EncodePublicKey(pubKeyHex)
+	if err != nil {
+		// Fallback to hex if encoding fails (should not happen)
+		return pubKeyHex
+	}
+	return npubStr
+}
+
+// stringToNpub decodes a NIP19-encoded npub string (or hex) to btcec.PublicKey.
+// Accepts both NIP19 bech32 format (npub1...) and raw hex strings.
+// Returns nil if the string is empty (optional field).
+// Returns an error if the format is invalid or the key cannot be parsed.
+func stringToNpub(npubStr string) (*btcec.PublicKey, error) {
+	if npubStr == "" {
+		return nil, nil
+	}
+
+	var pubKeyHex string
+
+	// Try to decode as NIP19 bech32 format first
+	if len(npubStr) > 4 && npubStr[:5] == "npub1" {
+		_, decodedValue, err := nip19.Decode(npubStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid nip19 npub format: %w", err)
+		}
+
+		// decodedValue should be a string (hex public key)
+		pubKeyHex, ok := decodedValue.(string)
+		if !ok {
+			return nil, fmt.Errorf("nip19 decode returned unexpected type: %T", decodedValue)
+		}
+		pubKeyHex = pubKeyHex
+	} else {
+		// Try to use as raw hex
+		pubKeyHex = npubStr
+	}
+
+	// Parse the hex string to btcec.PublicKey
+	npubBytes, err := hex.DecodeString(pubKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("invalid hex format: %w", err)
+	}
+
+	npub, err := btcec.ParsePubKey(npubBytes)
+	if err != nil {
+		return nil, fmt.Errorf("invalid public key: %w", err)
+	}
+
+	return npub, nil
+}
+
+// languageTagToString converts language.Tag to its string representation.
+func languageTagToString(tag language.Tag) string {
+	return tag.String()
+}
+
+// stringToLanguageTag parses a string to language.Tag.
+// Returns an error if the tag format is invalid.
+func stringToLanguageTag(tagStr string) (language.Tag, error) {
+	if tagStr == "" {
+		return language.Tag{}, fmt.Errorf("language tag cannot be empty")
+	}
+
+	tag, err := language.Parse(tagStr)
+	if err != nil {
+		return language.Tag{}, fmt.Errorf("failed to parse language tag: %w", err)
+	}
+
+	return tag, nil
 }

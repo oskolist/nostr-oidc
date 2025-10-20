@@ -964,45 +964,6 @@ func (s *Storage) Health(ctx context.Context) error {
 
 	return nil
 }
-func (s *Storage) CheckUserNpub(publicKey *btcec.PublicKey) error {
-
-	tx, err := s.db.BeginTx(context.Background(), nil)
-	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
-	}
-	defer tx.Rollback()
-
-	_, err = s.db.SearchUserByNpub(tx, publicKey)
-	if err != nil {
-		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return fmt.Errorf("tx.Commit(). %w", err)
-	}
-	return nil
-	// return nil
-}
-func (s *Storage) AddUser(user User) error {
-	tx, err := s.db.BeginTx(context.Background(), nil)
-	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
-	}
-	defer tx.Rollback()
-
-	err = s.db.AddUser(tx, &user)
-	if err != nil {
-		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return fmt.Errorf("tx.Commit(). %w", err)
-	}
-	return nil
-	// return nil
-}
 
 // Device Code auth flow
 
@@ -1241,4 +1202,86 @@ func (s *Storage) EditClient(ctx context.Context, client Client) error {
 	}
 
 	return nil
+}
+
+func (s *Storage) EditUser(ctx context.Context, user User) error {
+	// Start a transaction
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	// Update the user
+	err = s.db.EditUser(tx, &user)
+	if err != nil {
+		return fmt.Errorf("could not edit user: %w", err)
+	}
+	// Commit transaction
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %w", err)
+	}
+
+	return nil
+}
+
+func (s *Storage) CheckUserNpub(publicKey *btcec.PublicKey) error {
+
+	tx, err := s.db.BeginTx(context.Background(), nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	_, err = s.db.SearchUserByNpub(tx, publicKey)
+	if err != nil {
+		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return nil
+	// return nil
+}
+func (s *Storage) GetUserById(ctx context.Context, id string) (*User, error) {
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	user, err := s.db.SearchUserByID(tx, id)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return user, nil
+}
+
+func (s *Storage) AddUser(ctx context.Context, user User) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	err = s.db.AddUser(tx, &user)
+	if err != nil {
+		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return nil
+	// return nil
 }

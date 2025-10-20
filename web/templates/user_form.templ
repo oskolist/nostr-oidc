@@ -1,0 +1,181 @@
+package templates
+
+import (
+	"fmt"
+)
+
+// UserFormData holds the data needed to render the user form
+type UserFormData struct {
+	ID                string `form:"id" label:"User ID"`
+	Npub              string `form:"npub" label:"Nostr Public Key"`
+	PreferredLanguage string `form:"preferred_language" label:"Preferred Language"`
+	IsAdmin           bool   `form:"is_admin" label:"Administrator"`
+	Active            bool   `form:"active" label:"Active"`
+}
+
+// UserFormPage renders the full page with the user form
+templ UserFormPage(user *UserFormData) {
+	@Layout("User Configuration") {
+		@UserForm(user)
+	}
+}
+
+// UserForm renders the main user configuration form
+templ UserForm(user *UserFormData) {
+	<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+		<div class="max-w-4xl mx-auto">
+			<!-- Header -->
+			<div class="mb-8">
+				<h1 class="text-3xl font-bold text-gray-900">User Configuration</h1>
+				<p class="mt-2 text-lg text-gray-600">Manage user accounts and settings</p>
+			</div>
+			<!-- Form -->
+			<form
+				hx-post={ getUserFormEndpoint(user) }
+				hx-target=".form"
+				hx-swap="none"
+				class="form bg-white rounded-xl shadow-lg p-8 space-y-8"
+			>
+				<!-- Section 1: Basic Information -->
+				<div class="border-b border-gray-200 pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 mb-6">Basic Information</h2>
+					<!-- User ID -->
+					<div class="mb-6">
+						if user != nil && user.ID != "" {
+							@TextInput("id", "User ID", "user_123", user.ID, true, "Unique identifier for the user account", true)
+						} else {
+							@TextInput("id", "User ID", "user_123", "", true, "Unique identifier for the user account", false)
+						}
+					</div>
+					<!-- Active Status -->
+					<div class="mb-6">
+						<label class="flex items-center cursor-pointer">
+							<input
+								type="checkbox"
+								name="active"
+								value="on"
+								if user != nil && user.Active {
+									checked
+								}
+								class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+							/>
+							<span class="ml-3 text-sm font-medium text-gray-700">Account Active</span>
+							<p class="text-xs text-gray-500 ml-auto">Enable or disable user login access</p>
+						</label>
+					</div>
+				</div>
+				<!-- Section 2: Nostr Configuration -->
+				<div class="border-b border-gray-200 pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 mb-6">Nostr Configuration</h2>
+					<!-- Nostr Public Key (Npub) -->
+					<div class="mb-6">
+						if user != nil {
+							@TextInput("npub", "Nostr Public Key (Npub)", "npub1a1a2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e", user.Npub, false, "Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", false)
+						} else {
+							@TextInput("npub", "Nostr Public Key (Npub)", "npub1a1a2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e", "", false, "Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", false)
+						}
+					</div>
+				</div>
+				<!-- Section 3: Preferences -->
+				<div class="border-b border-gray-200 pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 mb-6">Preferences</h2>
+					<!-- Preferred Language -->
+					<div class="mb-6">
+						if user != nil {
+							@SelectInput("preferred_language", "Preferred Language", LanguageOptions(), user.PreferredLanguage, true, "Your preferred language for interface and communications")
+						} else {
+							@SelectInput("preferred_language", "Preferred Language", LanguageOptions(), "en-US", true, "Your preferred language for interface and communications")
+						}
+					</div>
+				</div>
+				<!-- Section 4: Permissions -->
+				<div class="pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 mb-6">Permissions</h2>
+					<!-- Administrator Privileges -->
+					<div class="mb-6">
+						<label class="flex items-center cursor-pointer">
+							<input
+								type="checkbox"
+								name="is_admin"
+								value="on"
+								if user != nil && user.IsAdmin {
+									checked
+								}
+								class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+							/>
+							<span class="ml-3 text-sm font-medium text-gray-700">Administrator Privileges</span>
+							<p class="text-xs text-gray-500 ml-auto">Grant administrative access to manage the system</p>
+						</label>
+					</div>
+				</div>
+				<!-- Form Actions -->
+				<div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
+					<button
+						type="button"
+						onclick="window.history.back()"
+						class="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+					>
+						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+						</svg>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						class="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-md hover:shadow-lg"
+					>
+						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+						</svg>
+						if user == nil || user.ID == "" {
+							Create User
+						} else {
+							Save Configuration
+						}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+}
+
+// ========== Helper Types and Functions ==========
+
+type LanguageOption struct {
+	Label string
+	Value string
+}
+
+// LanguageOptions returns available language options for the form
+func LanguageOptions() []SelectOption {
+	return []SelectOption{
+		{Label: "English (US)", Value: "en-US"},
+		{Label: "English (GB)", Value: "en-GB"},
+		{Label: "Español (España)", Value: "es-ES"},
+		{Label: "Español (México)", Value: "es-MX"},
+		{Label: "Français (France)", Value: "fr-FR"},
+		{Label: "Deutsch (Deutschland)", Value: "de-DE"},
+		{Label: "Italiano (Italia)", Value: "it-IT"},
+		{Label: "Português (Brasil)", Value: "pt-BR"},
+		{Label: "Português (Portugal)", Value: "pt-PT"},
+		{Label: "日本語 (Japan)", Value: "ja-JP"},
+		{Label: "中文 (Simplified, China)", Value: "zh-Hans-CN"},
+		{Label: "中文 (Traditional, Taiwan)", Value: "zh-Hant-TW"},
+		{Label: "한국어 (Korea)", Value: "ko-KR"},
+		{Label: "Русский (Russia)", Value: "ru-RU"},
+		{Label: "Türkçe (Turkey)", Value: "tr-TR"},
+	}
+}
+
+// getUserFormEndpoint determines the form submission endpoint based on whether the user is nil
+func getUserFormEndpoint(user *UserFormData) string {
+	if user == nil || user.ID == "" {
+		return "/admin/add_user"
+	}
+	return fmt.Sprintf("/admin/user/%s", user.ID)
+}
+
+// isEditingUser determines if form is in edit mode
+func isEditingUser(user *UserFormData) bool {
+	return user != nil && user.ID != ""
+}

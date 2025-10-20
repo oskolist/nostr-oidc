@@ -53,7 +53,7 @@ func (l *login) createRouter(issuerInterceptor *op.IssuerInterceptor) {
 type authenticate interface {
 	CheckUserNpub(publicKey *btcec.PublicKey) error
 	CheckNostrEventSignature(event nostr.Event) error
-	AddUser(user storage.User) error
+	AddUser(ctx context.Context, user storage.User) error
 }
 
 func (l *login) loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -269,7 +269,7 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add user to storage
-	err = s.storage.AddUser(newUser)
+	err = s.storage.AddUser(r.Context(), newUser)
 	if err != nil {
 		slog.Error("Failed to create user", slog.String("error", err.Error()))
 		// Check if it's a duplicate key error

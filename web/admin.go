@@ -2,16 +2,12 @@ package web
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/form/v4"
@@ -19,9 +15,15 @@ import (
 	"github.com/lescuer97/nostr-oicd/web/templates"
 )
 
+var decoder = form.NewDecoder()
+
 type administration interface {
 	AddClient(ctx context.Context, client storage.Client) error
 	EditClient(ctx context.Context, client storage.Client) error
+
+	GetUserById(ctx context.Context, id string) (*storage.User, error)
+	// AddUser(ctx context.Context, client storage.User) error
+	EditUser(ctx context.Context, client storage.User) error
 }
 
 // NewSignupHandler creates a new signup handler
@@ -35,7 +37,13 @@ func NewAdminHandler(storage Storage) chi.Router {
 
 	router.Post("/add_client", s.addClient)
 	router.Post("/client/{id}", s.editClient)
-	// router.Post("/", s.processSignup)
+
+	router.Get("/user/{id}", s.editUserForm)
+	router.Get("/add_user", s.addUserForm)
+
+	router.Post("/add_user", s.addUserHandler)
+	router.Post("/user/{id}", s.editUserHandler)
+	
 	return router
 }
 
@@ -69,8 +77,6 @@ func (s *adminHandler) clientEditFormById(w http.ResponseWriter, r *http.Request
 func (s *adminHandler) addClientForm(w http.ResponseWriter, r *http.Request) {
 	templates.ClientFormPage(nil).Render(r.Context(), w)
 }
-
-var decoder = form.NewDecoder()
 
 func (s *adminHandler) addClient(w http.ResponseWriter, r *http.Request) {
 	// Parse form data
@@ -170,22 +176,137 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// parseIntOrDefault parses a string to int, returning a default value on error
-func parseIntOrDefault(s string, defaultVal int) int {
-	val, err := strconv.Atoi(s)
+func (s *adminHandler) editUserForm(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	user, err := s.storage.GetUserById(r.Context(), id)
 	if err != nil {
-		return defaultVal
+		log.Printf("\n error: %+v", errors.Is(err, sql.ErrNoRows))
+		if errors.Is(err, sql.ErrNoRows) {
+			templates.NotFoundPage("User id not found for modification").Render(r.Context(), w)
+			return
+		}
+		slog.Error("User id does not exist", slog.String("error", err.Error()))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "User not found",
+			Type: notificationTypeError,
+		}, r, w)
+		return
 	}
-	return val
+
+	// Convert storage.User to UserFormData
+	userFormData := templates.StorageUserToFormData(user)
+	templates.UserFormPage(&userFormData).Render(r.Context(), w)
 }
 
-// generateClientSecret generates a secure random client secret
-func generateClientSecret() string {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		// Fallback to a simpler approach if crypto/rand fails
-		return "fallback-secret-" + strconv.FormatInt(time.Now().Unix(), 10)
+func (s *adminHandler) editUserHandler(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	// Parse form data
+	if err := r.ParseForm(); err != nil {
+		slog.Error("Failed to parse form", slog.String("error", err.Error()))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Invalid form data",
+			Type: notificationTypeError,
+		}, r, w)
+		return
 	}
-	return base64.URLEncoding.EncodeToString(b)
+
+	// Decode into your struct
+	var formUser templates.UserFormData
+	if err := decoder.Decode(&formUser, r.Form); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	if id != formUser.ID {
+		slog.Error("trying to editing the wrong client")
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Trying to change a channel id without access",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	user, err := templates.FormDataToStorageUser(&formUser)
+	if err != nil {
+		slog.Error("parsing user for editing went wrong", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "parsing user for editing went wrong",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	if user == nil {
+		log.Panicf("client should have never been nil")
+	}
+
+	err = s.storage.EditUser(r.Context(), *user)
+	if err != nil {
+		slog.Error("s.storage.EditUser(r.Context(), *user)", slog.String("error", err.Error()))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not add user",
+			Type: notificationTypeError,
+		}, r, w)
+
+	}
+
+	// Success - show success message
+	writeHtmlNotification(templates.NotifInfo{
+		Msg:  "User edited successfully",
+		Type: notificationTypeSuccess,
+	}, r, w)
+}
+
+func (s *adminHandler) addUserForm(w http.ResponseWriter, r *http.Request) {
+	templates.UserFormPage(nil).Render(r.Context(), w)
+}
+
+func (s *adminHandler) addUserHandler(w http.ResponseWriter, r *http.Request) {
+	// Parse form data
+	if err := r.ParseForm(); err != nil {
+		slog.Error("Failed to parse form", slog.String("error", err.Error()))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Invalid form data",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	// Decode into your struct
+	var formUser templates.UserFormData
+	if err := decoder.Decode(&formUser, r.Form); err != nil {
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	user, err := templates.FormDataToStorageUser(&formUser)
+	if err != nil {
+		slog.Error("parsing user for editing went wrong", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "parsing user for editing went wrong",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	if user == nil {
+		log.Panicf("client should have never been nil")
+	}
+
+	err = s.storage.AddUser(r.Context(), *user)
+	if err != nil {
+		slog.Error("s.storage.AddUser", slog.String("error", err.Error()))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not add user",
+			Type: notificationTypeError,
+		}, r, w)
+
+	}
+
+	// Success - show success message
+	writeHtmlNotification(templates.NotifInfo{
+		Msg:  "Created user successfully",
+		Type: notificationTypeSuccess,
+	}, r, w)
 }
