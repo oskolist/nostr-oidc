@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/form/v4"
+	"github.com/google/uuid"
 	"github.com/lescuer97/nostr-oicd/storage"
 	"github.com/lescuer97/nostr-oicd/web/templates"
 )
@@ -43,7 +44,7 @@ func NewAdminHandler(storage Storage) chi.Router {
 
 	router.Post("/add_user", s.addUserHandler)
 	router.Post("/user/{id}", s.editUserHandler)
-	
+
 	return router
 }
 
@@ -290,9 +291,11 @@ func (s *adminHandler) addUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user.ID = uuid.NewString()
 	if user == nil {
 		log.Panicf("client should have never been nil")
 	}
+	user.Active = true
 
 	err = s.storage.AddUser(r.Context(), *user)
 	if err != nil {

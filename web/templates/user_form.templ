@@ -36,34 +36,42 @@ templ UserForm(user *UserFormData) {
 				hx-swap="none"
 				class="form bg-white rounded-xl shadow-lg p-8 space-y-8"
 			>
-				<!-- Section 1: Basic Information -->
-				<div class="border-b border-gray-200 pb-8">
-					<h2 class="text-xl font-semibold text-gray-900 mb-6">Basic Information</h2>
-					<!-- User ID -->
-					<div class="mb-6">
-						if user != nil && user.ID != "" {
-							@TextInput("id", "User ID", "user_123", user.ID, true, "Unique identifier for the user account", true)
-						} else {
-							@TextInput("id", "User ID", "user_123", "", true, "Unique identifier for the user account", false)
-						}
+				<!-- Hidden ID field for edit mode -->
+				if user != nil && user.ID != "" {
+					<input type="hidden" name="id" value={ user.ID }/>
+				}
+				<!-- Section 1: Basic Information (only shown in edit mode) -->
+				if user != nil && user.ID != "" {
+					<div class="border-b border-gray-200 pb-8">
+						<h2 class="text-xl font-semibold text-gray-900 mb-6">Basic Information</h2>
+						<!-- User ID Display (read-only, not editable) -->
+						<div class="mb-6">
+							<label class="block text-sm font-medium text-gray-700 mb-2">
+								User ID
+							</label>
+							<div class="px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-600 font-mono text-sm">
+								{ user.ID }
+							</div>
+							<p class="text-xs text-gray-500 mt-1">User identifier (cannot be changed)</p>
+						</div>
+						<!-- Active Status (only shown in edit mode) -->
+						<div class="mb-6">
+							<label class="flex items-center cursor-pointer">
+								<input
+									type="checkbox"
+									name="active"
+									value="on"
+									if user.Active {
+										checked
+									}
+									class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+								/>
+								<span class="ml-3 text-sm font-medium text-gray-700">Account Active</span>
+								<p class="text-xs text-gray-500 ml-auto">Enable or disable user login access</p>
+							</label>
+						</div>
 					</div>
-					<!-- Active Status -->
-					<div class="mb-6">
-						<label class="flex items-center cursor-pointer">
-							<input
-								type="checkbox"
-								name="active"
-								value="on"
-								if user != nil && user.Active {
-									checked
-								}
-								class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-							/>
-							<span class="ml-3 text-sm font-medium text-gray-700">Account Active</span>
-							<p class="text-xs text-gray-500 ml-auto">Enable or disable user login access</p>
-						</label>
-					</div>
-				</div>
+				}
 				<!-- Section 2: Nostr Configuration -->
 				<div class="border-b border-gray-200 pb-8">
 					<h2 class="text-xl font-semibold text-gray-900 mb-6">Nostr Configuration</h2>

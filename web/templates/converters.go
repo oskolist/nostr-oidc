@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/lescuer97/nostr-oicd/storage"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
@@ -267,21 +268,17 @@ func stringToNpub(npubStr string) (*btcec.PublicKey, error) {
 	var pubKeyHex string
 
 	// Try to decode as NIP19 bech32 format first
-	if len(npubStr) > 4 && npubStr[:5] == "npub1" {
-		_, decodedValue, err := nip19.Decode(npubStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid nip19 npub format: %w", err)
-		}
+	prefix, decodedValue, err := nip19.Decode(npubStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid nip19 npub format: %w", err)
+	}
+	if prefix != "npub" {
+		return nil, fmt.Errorf("npub is not valid: %w", err)
+	}
 
-		// decodedValue should be a string (hex public key)
-		pubKeyHex, ok := decodedValue.(string)
-		if !ok {
-			return nil, fmt.Errorf("nip19 decode returned unexpected type: %T", decodedValue)
-		}
-		pubKeyHex = pubKeyHex
-	} else {
-		// Try to use as raw hex
-		pubKeyHex = npubStr
+	pubKeyHex, ok := decodedValue.(string)
+	if !ok {
+		return nil, fmt.Errorf("nip19 decode returned unexpected type: %T", decodedValue)
 	}
 
 	// Parse the hex string to btcec.PublicKey
@@ -290,7 +287,7 @@ func stringToNpub(npubStr string) (*btcec.PublicKey, error) {
 		return nil, fmt.Errorf("invalid hex format: %w", err)
 	}
 
-	npub, err := btcec.ParsePubKey(npubBytes)
+	npub, err := schnorr.ParsePubKey(npubBytes)
 	if err != nil {
 		return nil, fmt.Errorf("invalid public key: %w", err)
 	}
