@@ -33,6 +33,8 @@ func NewAdminHandler(storage Storage) chi.Router {
 		storage: storage,
 	}
 	router := chi.NewRouter()
+	
+	// Existing routes
 	router.Get("/client/{id}", s.clientEditFormById)
 	router.Get("/add_client", s.addClientForm)
 
@@ -44,6 +46,11 @@ func NewAdminHandler(storage Storage) chi.Router {
 
 	router.Post("/add_user", s.addUserHandler)
 	router.Post("/user/{id}", s.editUserHandler)
+	
+	// New dashboard routes
+	router.Get("/", s.dashboard)
+	router.Get("/clients", s.clientsList)
+	router.Get("/users", s.usersList)
 
 	return router
 }
@@ -312,4 +319,35 @@ func (s *adminHandler) addUserHandler(w http.ResponseWriter, r *http.Request) {
 		Msg:  "Created user successfully",
 		Type: notificationTypeSuccess,
 	}, r, w)
+}
+
+func (s *adminHandler) dashboard(w http.ResponseWriter, r *http.Request) {
+	templates.Dashboard().Render(r.Context(), w)
+}
+
+func (s *adminHandler) clientsList(w http.ResponseWriter, r *http.Request) {
+	// For now, return empty list - will be populated from storage later
+	clients := []templates.ClientFormData{}
+	
+	templates.ClientList(clients).Render(r.Context(), w)
+}
+
+func (s *adminHandler) usersList(w http.ResponseWriter, r *http.Request) {
+	// Mock data for now
+	users := []templates.UserFormData{
+		{
+			ID:      "user-1",
+			Npub:    "npub1...",
+			IsAdmin: true,
+			Active:  true,
+		},
+		{
+			ID:      "user-2",
+			Npub:    "npub2...",
+			IsAdmin: false,
+			Active:  false,
+		},
+	}
+	
+	templates.UserList(users).Render(r.Context(), w)
 }

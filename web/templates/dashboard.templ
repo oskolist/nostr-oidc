@@ -1,0 +1,47 @@
+package templates
+
+templ Dashboard() {
+	@Layout("Administration Dashboard") {
+		<div class="min-h-screen bg-gray-50">
+			@DashboardHeader()
+			
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+				<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+					<!-- Clients Section -->
+					<div class="bg-white rounded-xl shadow-sm border border-gray-200">
+						<div class="px-6 py-4 border-b border-gray-200">
+							<h2 class="text-xl font-semibold text-gray-800">Clients</h2>
+						</div>
+						<div id="clients-list" class="p-6" hx-get="/admin/clients" hx-trigger="load">
+							<div class="text-center py-8">
+								<div class="inline-block">
+									<svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+									</svg>
+								</div>
+							</div>
+						</div>
+					</div>
+					
+					<!-- Users Section -->
+					<div class="bg-white rounded-xl shadow-sm border border-gray-200">
+						<div class="px-6 py-4 border-b border-gray-200">
+							<h2 class="text-xl font-semibold text-gray-800">Users</h2>
+						</div>
+						<div id="users-list" class="p-6" hx-get="/admin/users" hx-trigger="load">
+							<div class="text-center py-8">
+								<div class="inline-block">
+									<svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+									</svg>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
