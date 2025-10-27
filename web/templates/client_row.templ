@@ -13,8 +13,9 @@ templ ClientRow(client ClientFormData) {
 					{ client.ClientID }
 				</span>
 				<div class="min-w-0 flex-1">
-					<p class="font-medium text-gray-900 truncate" title="Client">Client</p>
-					<p class="text-sm text-gray-500 truncate" title="Client Configuration">Client Configuration</p>
+					<p class="font-medium text-gray-900" title={ client.ClientID }>Client ID: { client.ClientID }</p>
+					<p class="text-sm text-gray-500" title={ getApplicationTypeLabel(client.ApplicationType) }>Application Type: { getApplicationTypeLabel(client.ApplicationType) }</p>
+					<p class="text-sm text-gray-500" title={ getAccessTokenTypeLabel(client.AccessTokenType) }>Access Token Type: { getAccessTokenTypeLabel(client.AccessTokenType) }</p>
 				</div>
 			</div>
 		</div>
@@ -35,4 +36,30 @@ templ ClientRow(client ClientFormData) {
 			</a>
 		</div>
 	</div>
+}
+
+// getApplicationTypeLabel returns a human-readable label for the application type
+func getApplicationTypeLabel(appType int) string {
+	switch appType {
+	case 0:
+		return "Web Application"
+	case 1:
+		return "User Agent (SPA)"
+	case 2:
+		return "Native Application"
+	default:
+		return "Unknown"
+	}
+}
+
+// getAccessTokenTypeLabel returns a human-readable label for the access token type
+func getAccessTokenTypeLabel(tokenType int) string {
+	switch tokenType {
+	case 0:
+		return "Bearer Token"
+	case 1:
+		return "JWT Token"
+	default:
+		return "Unknown"
+	}
 }

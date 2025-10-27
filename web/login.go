@@ -125,9 +125,9 @@ type signupHandler struct {
 func writeHtmlNotification(info templates.NotifInfo, r *http.Request, w http.ResponseWriter) {
 	w.Header().Add("HX-Retarget", "#notifications")
 	w.Header().Add("HX-Reswap", "innerHTML")
-	if info.Type == notificationTypeError {
-		w.WriteHeader(400)
-	}
+	// if info.Type == notificationTypeError {
+	// 	w.WriteHeader(400)
+	// }
 	templates.Notification(info).Render(r.Context(), w)
 }
 

@@ -246,7 +246,8 @@ func npubToString(npub *btcec.PublicKey) string {
 		return ""
 	}
 	// Convert public key to hex string
-	pubKeyHex := hex.EncodeToString(npub.SerializeCompressed())
+	pubKeyHex := hex.EncodeToString(schnorr.SerializePubKey(npub))
+
 	// Encode as NIP19 npub format (bech32)
 	npubStr, err := nip19.EncodePublicKey(pubKeyHex)
 	if err != nil {

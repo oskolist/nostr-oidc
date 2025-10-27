@@ -3,7 +3,7 @@ package templates
 import "fmt"
 
 templ UserRow(user UserFormData) {
-	<div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors w-full">
+	<div class="flex items-center justify-between gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors w-full">
 		<div class="flex-1 min-w-0">
 			<div class="flex items-center gap-3">
 				<span
@@ -13,10 +13,8 @@ templ UserRow(user UserFormData) {
 					{ user.ID }
 				</span>
 				<div class="min-w-0 flex-1">
-					<p class="font-medium text-gray-900 truncate" title={ user.Npub }>
-						<code class="bg-gray-100 px-2 py-1 rounded truncate block max-w-[15rem]">{ user.Npub }</code>
-					</p>
-					<p class="text-sm text-gray-500">User type</p>
+					<p class="text-sm text-gray-500" title={ user.Npub }>Nostr Public Key: <code class="bg-gray-100 px-2 py-1 rounded block">{ user.Npub }</code></p>
+					<p class="text-sm text-gray-500">Status: Active</p>
 				</div>
 			</div>
 		</div>
