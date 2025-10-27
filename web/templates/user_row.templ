@@ -3,17 +3,18 @@ package templates
 import "fmt"
 
 templ UserRow(user UserFormData) {
-	<div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-		<div class="flex-1">
+	<div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors w-full">
+		<div class="flex-1 min-w-0">
 			<div class="flex items-center gap-3">
 				<span
-					class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+					class="flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 max-w-[12rem] truncate mr-3"
+					title={ user.ID }
 				>
 					{ user.ID }
 				</span>
-				<div>
-					<p class="font-medium text-gray-900">
-						<code class="bg-gray-100 px-2 py-1 rounded">{ user.Npub }</code>
+				<div class="min-w-0 flex-1">
+					<p class="font-medium text-gray-900 truncate" title={ user.Npub }>
+						<code class="bg-gray-100 px-2 py-1 rounded truncate block max-w-[15rem]">{ user.Npub }</code>
 					</p>
 					<p class="text-sm text-gray-500">User type</p>
 				</div>
