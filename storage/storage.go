@@ -1226,6 +1226,44 @@ func (s *Storage) EditUser(ctx context.Context, user User) error {
 	return nil
 }
 
+func (s *Storage) GetAllClients(ctx context.Context) ([]Client, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	clients, err := s.db.SearchAllClients(tx)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.SearchAllClients(tx). %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return clients, nil
+}
+
+func (s *Storage) GetAllUsers(ctx context.Context) ([]User, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	users, err := s.db.SearchAllUsers(tx)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.SearchAllUsers(tx). %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return users, nil
+}
+
 func (s *Storage) CheckUserNpub(publicKey *btcec.PublicKey) error {
 
 	tx, err := s.db.BeginTx(context.Background(), nil)

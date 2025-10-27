@@ -54,6 +54,8 @@ type authenticate interface {
 	CheckUserNpub(publicKey *btcec.PublicKey) error
 	CheckNostrEventSignature(event nostr.Event) error
 	AddUser(ctx context.Context, user storage.User) error
+	GetAllClients(ctx context.Context) ([]storage.Client, error)
+	GetAllUsers(ctx context.Context) ([]storage.User, error)
 }
 
 func (l *login) loginHandler(w http.ResponseWriter, r *http.Request) {

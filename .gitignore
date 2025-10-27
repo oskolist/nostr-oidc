@@ -1,5 +1,5 @@
 # Binaries
-# Remove Tailwind build config and npm artifacts since we use CDN
+ Remove Tailwind build config and npm artifacts since we use CDN
 tailwind.config.js
 package.json
 node_modules/

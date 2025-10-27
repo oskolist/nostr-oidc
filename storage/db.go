@@ -972,3 +972,71 @@ func (s *storageDB) DeleteDeviceAuthorization(tx *sql.Tx, deviceCode string) err
 	}
 	return nil
 }
+
+// SearchAllClients retrieves all clients from the database
+func (s *storageDB) SearchAllClients(tx *sql.Tx) ([]Client, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `
+		SELECT id, secret, redirect_uris, application_type, auth_method, response_types,
+			   grant_types, access_token_type, dev_mode, id_token_userinfo_claims_assertion,
+			   clock_skew, post_logout_redirect_uri_globs, redirect_uri_globs
+		FROM clients`
+
+	rows, err := tx.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("tx.Query(SearchAllClients): %w", err)
+	}
+	defer rows.Close()
+
+	var clients []Client
+	for rows.Next() {
+		var client Client
+		err := client.ScanRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("client.ScanRow(SearchAllClients): %w", err)
+		}
+		clients = append(clients, client)
+	}
+
+	// Check for any error that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows.Err(SearchAllClients): %w", err)
+	}
+
+	return clients, nil
+}
+
+// SearchAllUsers retrieves all users from the database
+func (s *storageDB) SearchAllUsers(tx *sql.Tx) ([]User, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `SELECT id, npub, preferred_language, is_admin, active FROM users`
+
+	rows, err := tx.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("tx.Query(SearchAllUsers): %w", err)
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		err := user.ScanRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("user.ScanRow(SearchAllUsers): %w", err)
+		}
+		users = append(users, user)
+	}
+
+	// Check for any error that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows.Err(SearchAllUsers): %w", err)
+	}
+
+	return users, nil
+}
