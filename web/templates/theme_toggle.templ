@@ -1,0 +1,57 @@
+package templates
+
+var themeToggleScript = templ.NewOnceHandle()
+
+templ ThemeToggle() {
+	<button id="theme-toggle" type="button" class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5" onclick="toggleTheme(); updateThemeIcon();">
+		<svg id="theme-toggle-dark-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+			<path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+		</svg>
+		<svg id="theme-toggle-light-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+			<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.459 4.272A7.002 7.002 0 0010 15a7.002 7.002 0 00-6.541 4.272a1 1 0 01-1.94-456.456C3.905 16.541 6.78 15 10 15s6.095 1.541 7.481 2.728a1 1 0 01-1.94-456.456zM12 4a1 1 0 011 1v1a1 1 0 11-2 0V5a1 1 0 011-1zm6 4a1 1 0 011 1h1a1 1 0 110-2h-1a1 1 0 01-1 1zm-2 2a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM4 9a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1z"></path>
+		</svg>
+	</button>
+
+	@themeToggleScript.Once() {
+		<script>
+			// Initialize the theme icons on page load
+			function initThemeIcon() {
+				const isDark = document.documentElement.classList.contains('dark');
+				const darkIcon = document.getElementById('theme-toggle-dark-icon');
+				const lightIcon = document.getElementById('theme-toggle-light-icon');
+				
+				if (isDark) {
+					darkIcon.classList.remove('hidden');
+					lightIcon.classList.add('hidden');
+				} else {
+					lightIcon.classList.remove('hidden');
+					darkIcon.classList.add('hidden');
+				}
+			}
+
+			// Update the theme icons after toggle
+			function updateThemeIcon() {
+				const isDark = document.documentElement.classList.contains('dark');
+				const darkIcon = document.getElementById('theme-toggle-dark-icon');
+				const lightIcon = document.getElementById('theme-toggle-light-icon');
+				
+				if (isDark) {
+					// Dark mode is now ON, show the moon icon
+					darkIcon.classList.remove('hidden');
+					lightIcon.classList.add('hidden');
+				} else {
+					// Dark mode is now OFF, show the sun icon
+					lightIcon.classList.remove('hidden');
+					darkIcon.classList.add('hidden');
+				}
+			}
+
+			// Initialize on DOM ready
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', initThemeIcon);
+			} else {
+				initThemeIcon();
+			}
+		</script>
+	}
+}

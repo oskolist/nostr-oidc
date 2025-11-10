@@ -3,35 +3,35 @@ package templates
 import "fmt"
 
 templ UserRow(user UserFormData) {
-	<div class="flex items-center justify-between gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors w-full">
+	<div class="flex items-center justify-between gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors w-full dark:border-gray-700 dark:hover:bg-gray-700/50">
 		<div class="flex-1 min-w-0">
 			<div class="flex items-center gap-3">
 				<span
-					class="flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 max-w-[12rem] truncate mr-3"
+					class="flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 max-w-[12rem] truncate mr-3 dark:bg-purple-900 dark:text-purple-200"
 					title={ user.ID }
 				>
 					{ user.ID }
 				</span>
 				<div class="min-w-0 flex-1">
-					<p class="text-sm text-gray-500" title={ user.Npub }>Nostr Public Key: <code class="bg-gray-100 px-2 py-1 rounded block">{ user.Npub }</code></p>
-					<p class="text-sm text-gray-500">Status: Active</p>
+					<p class="text-sm text-gray-500 dark:text-gray-400" title={ user.Npub }>Nostr Public Key: <code class="bg-gray-100 px-2 py-1 rounded block dark:bg-gray-700 dark:text-gray-300">{ user.Npub }</code></p>
+					<p class="text-sm text-gray-500 dark:text-gray-400">Status: Active</p>
 				</div>
 			</div>
 		</div>
 		<div>
 			<span
-				class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+				class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
 			>User</span>
 		</div>
 		<div>
 			<span
-				class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+				class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
 			>Active</span>
 		</div>
 		<div>
 			<a
 				href={ templ.URL(fmt.Sprintf("/admin/user/%s", user.ID)) }
-				class="inline-flex items-center px-3 py-2 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors text-sm font-medium"
+				class="inline-flex items-center px-3 py-2 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors text-sm font-medium dark:bg-indigo-900 dark:text-indigo-200 dark:hover:bg-indigo-800"
 			>
 				<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path

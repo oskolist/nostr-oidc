@@ -4,7 +4,7 @@ templ CreateUserDialog() {
 	<dialog
 		open
 		id="formDialog"
-		class="fixed inset-0 m-auto p-0 bg-transparent border-none max-w-md w-full max-h-[90vh] rounded-xl shadow-2xl backdrop:bg-black backdrop:opacity-50"
+		class="fixed inset-0 m-auto p-0 bg-transparent border-none max-w-md w-full max-h-[90vh] rounded-xl shadow-2xl backdrop:bg-black backdrop:opacity-50 dark:backdrop:brightness-75"
 	>
 		<form
 			hx-post="/admin/add_npub"
@@ -13,10 +13,10 @@ templ CreateUserDialog() {
 			hx-swap="delete"
 			method="dialog"
 		>
-			<div class="bg-white rounded-xl p-8">
+			<div class="bg-white dark:bg-gray-800 rounded-xl p-8">
 				<div class="mb-6">
-					<h2 class="text-2xl font-semibold text-gray-800 text-center">Add New Account</h2>
-					<p class="text-sm text-gray-500 text-center mt-2">Create a new Nostr account with the specified number of allowed keys</p>
+					<h2 class="text-2xl font-semibold text-gray-800 dark:text-white text-center">Add New Account</h2>
+					<p class="text-sm text-gray-500 dark:text-gray-400 text-center mt-2">Create a new Nostr account with the specified number of allowed keys</p>
 				</div>
 				<div class="space-y-6">
 					<div>
@@ -50,7 +50,7 @@ templ CreateUserDialog() {
 						<p class="text-xs text-gray-500 mt-1">Number of keys this account can generate (1-1000)</p>
 					</div>
 				</div>
-				<div class="flex items-center justify-end space-x-3 mt-8 pt-6 border-t border-gray-200">
+				<div class="flex items-center justify-end space-x-3 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
 					<button
 						type="button"
 						onclick="document.querySelector('#formDialog').close();"
