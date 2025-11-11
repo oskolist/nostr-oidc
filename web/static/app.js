@@ -1,3 +1,10 @@
+import htmx from 'htmx.org';
+import 'htmx-ext-preload';
+import 'htmx-ext-remove-me';
+
+window.htmx = htmx;
+
+
 // App.js entry point: import and boot all modules
 
 // Login functionality

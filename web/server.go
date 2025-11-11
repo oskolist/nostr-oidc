@@ -2,8 +2,6 @@ package web
 
 import (
 	"crypto/sha256"
-	"embed"
-	"io/fs"
 	"log"
 	"log/slog"
 	"net/http"
@@ -27,9 +25,6 @@ type Storage interface {
 	deviceAuthenticate
 	administration
 }
-
-//go:embed static/*
-var static embed.FS
 
 // simple counter for request IDs
 var counter atomic.Int64
@@ -58,13 +53,8 @@ func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
 	// be sure to create a proper crypto random key and manage it securely!
 	key := sha256.Sum256([]byte("test"))
 
-	contentStatic, err := fs.Sub(static, "static")
-	if err != nil {
-		panic(err)
-	}
-
-	httpFs := http.FS(contentStatic)
-	fileServer := http.FileServer(httpFs)
+	staticFS := getStaticFileSystem()
+	fileServer := http.FileServer(staticFS)
 
 	router := chi.NewRouter()
 	router.Use(LogRequestURL)
