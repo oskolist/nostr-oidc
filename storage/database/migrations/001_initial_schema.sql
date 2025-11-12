@@ -77,7 +77,8 @@ CREATE TABLE configuration (
     max_clients INTEGER NOT NULL,
     max_users INTEGER NOT NULL,
     last_updated INTEGER NOT NULL,
-    registration_type TEXT NOT NULL CHECK (registration_type IN ('open', 'paid', 'manual'))
+    registration_type TEXT NOT NULL CHECK (registration_type IN ('open', 'paid', 'manual')),
+    nsec TEXT
 );
 
 -- Indexes

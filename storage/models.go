@@ -1,14 +1,14 @@
 package storage
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
-
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
 	"golang.org/x/text/language"
+	"time"
 )
 
 // Client represents the storage model of an OAuth/OIDC client
@@ -313,14 +313,25 @@ type deviceAuthorizationEntry struct {
 
 // Configuration represents the application's global settings
 type Configuration struct {
-	MaxClients       uint64 `form:"max_clients" validate:"gte=0"`
-	MaxUsers         uint64 `form:"max_users" validate:"gte=0"`
-	LastUpdated      uint64 `validate:"gte=0"`
-	RegistrationType string `form:"registration_type" validate:"oneof=open paid manual"`
+	MaxClients       uint64  `form:"max_clients" validate:"gte=0"`
+	MaxUsers         uint64  `form:"max_users" validate:"gte=0"`
+	LastUpdated      uint64  `validate:"gte=0"`
+	RegistrationType string  `form:"registration_type" validate:"oneof=open paid manual"`
+	Nsec             *string `form:"nsec"`
 }
 
 func (c *Configuration) ScanRow(row interface{ Scan(...interface{}) error }) error {
-	return row.Scan(&c.MaxClients, &c.MaxUsers, &c.LastUpdated, &c.RegistrationType)
+	var nsec sql.NullString
+	if err := row.Scan(&c.MaxClients, &c.MaxUsers, &c.LastUpdated, &c.RegistrationType, &nsec); err != nil {
+		return err
+	}
+	if nsec.Valid {
+		value := nsec.String
+		c.Nsec = &value
+	} else {
+		c.Nsec = nil
+	}
+	return nil
 }
 
 // ScanRow implements a pgx-style row scanner for deviceAuthorizationEntry

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/lescuer97/nostr-oicd/vertex"
 	"github.com/zitadel/logging"
 	"golang.org/x/text/language"
 
@@ -24,6 +25,11 @@ type Storage interface {
 	authenticate
 	deviceAuthenticate
 	administration
+}
+
+type Server struct {
+	Storage Storage
+	Vertex  *vertex.VertexChecker
 }
 
 // simple counter for request IDs
@@ -48,7 +54,7 @@ func LogRequestURL(next http.Handler) http.Handler {
 }
 
 // Use one of the pre-made clients in storage/clients.go or register a new one.
-func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
+func SetupServer(server *Server, extraOptions ...op.Option) chi.Router {
 	// the OpenID Provider requires a 32-byte key for (token) encryption
 	// be sure to create a proper crypto random key and manage it securely!
 	key := sha256.Sum256([]byte("test"))
@@ -73,7 +79,7 @@ func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
 
 	// creation of the OpenIDProvider with the just created in-memory Storage
 	provider, err := newOP(
-		storage,
+		server.Storage,
 		func(insecure bool) (op.IssuerFromRequest, error) {
 			return func(r *http.Request) string {
 				// issuer := r.Header.Get("issuer")
@@ -91,7 +97,7 @@ func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
 	//the provider will only take care of the OpenID Protocol, so there must be some sort of UI for the login process
 	//for the simplicity of the example this means a simple page with username and password field
 	//be sure to provide an IssuerInterceptor with the IssuerFromRequest from the OP so the login can select / and pass it to the storage
-	l := NewLogin(storage, op.AuthCallbackURL(provider), op.NewIssuerInterceptor(provider.IssuerFromRequest))
+	l := NewLogin(server.Storage, op.AuthCallbackURL(provider), op.NewIssuerInterceptor(provider.IssuerFromRequest))
 	// op.Co
 	// oidc.Discog
 
@@ -100,15 +106,15 @@ func SetupServer(storage Storage, extraOptions ...op.Option) chi.Router {
 	router.Mount("/login/", http.StripPrefix("/login", l.router))
 
 	// Mount signup routes
-	signupRouter := NewSignupHandler(storage)
+	signupRouter := NewSignupHandler(server.Storage)
 	router.Mount("/signup", http.StripPrefix("/signup", signupRouter))
 
-	adminRouter := NewAdminHandler(storage)
+	adminRouter := NewAdminHandler(server)
 	// router.Mount("/admin", http.StripPrefix("/admin", adminRouter))
 	router.Mount("/admin", adminRouter)
 
 	router.Route("/device", func(r chi.Router) {
-		registerDeviceAuth(storage, r)
+		registerDeviceAuth(server.Storage, r)
 	})
 
 	handler := http.Handler(provider)

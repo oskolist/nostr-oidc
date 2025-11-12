@@ -33,9 +33,9 @@ type administration interface {
 }
 
 // NewSignupHandler creates a new signup handler
-func NewAdminHandler(storage Storage) chi.Router {
+func NewAdminHandler(server *Server) chi.Router {
 	s := &adminHandler{
-		storage: storage,
+		server: server,
 	}
 	router := chi.NewRouter()
 
@@ -66,13 +66,13 @@ func NewAdminHandler(storage Storage) chi.Router {
 }
 
 type adminHandler struct {
-	storage Storage
+	server *Server
 }
 
 func (s *adminHandler) clientEditFormById(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
-	client, err := s.storage.GetClientByClientID(r.Context(), id)
+	client, err := s.server.Storage.GetClientByClientID(r.Context(), id)
 	if err != nil {
 		log.Printf("\n error: %+v", errors.Is(err, sql.ErrNoRows))
 		if errors.Is(err, sql.ErrNoRows) {
@@ -123,7 +123,7 @@ func (s *adminHandler) addClient(w http.ResponseWriter, r *http.Request) {
 		log.Panicf("client should have never been nil")
 	}
 
-	err := s.storage.AddClient(r.Context(), *client)
+	err := s.server.Storage.AddClient(r.Context(), *client)
 	if err != nil {
 		slog.Error("s.storage.AddClient", slog.String("error", err.Error()))
 		writeHtmlNotification(templates.NotifInfo{
@@ -176,7 +176,7 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 	if client == nil {
 		log.Panicf("client should have never been nil")
 	}
-	err := s.storage.EditClient(r.Context(), *client)
+	err := s.server.Storage.EditClient(r.Context(), *client)
 	if err != nil {
 		slog.Error("s.storage.AddClient", slog.String("error", err.Error()))
 		writeHtmlNotification(templates.NotifInfo{
@@ -197,7 +197,7 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 func (s *adminHandler) editUserForm(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
-	user, err := s.storage.GetUserById(r.Context(), id)
+	user, err := s.server.Storage.GetUserById(r.Context(), id)
 	if err != nil {
 		log.Printf("\n error: %+v", errors.Is(err, sql.ErrNoRows))
 		if errors.Is(err, sql.ErrNoRows) {
@@ -259,7 +259,7 @@ func (s *adminHandler) editUserHandler(w http.ResponseWriter, r *http.Request) {
 		log.Panicf("client should have never been nil")
 	}
 
-	err = s.storage.EditUser(r.Context(), *user)
+	err = s.server.Storage.EditUser(r.Context(), *user)
 	if err != nil {
 		slog.Error("s.storage.EditUser(r.Context(), *user)", slog.String("error", err.Error()))
 		writeHtmlNotification(templates.NotifInfo{
@@ -314,7 +314,7 @@ func (s *adminHandler) addUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	user.Active = true
 
-	err = s.storage.AddUser(r.Context(), *user)
+	err = s.server.Storage.AddUser(r.Context(), *user)
 	if err != nil {
 		slog.Error("s.storage.AddUser", slog.String("error", err.Error()))
 		writeHtmlNotification(templates.NotifInfo{
@@ -338,9 +338,9 @@ func (s *adminHandler) dashboard(w http.ResponseWriter, r *http.Request) {
 func (s *adminHandler) clientsList(w http.ResponseWriter, r *http.Request) {
 	// For now, return empty list - will be populated from storage later
 
-	clientsDb, err := s.storage.GetAllClients(r.Context())
+	clientsDb, err := s.server.Storage.GetAllClients(r.Context())
 	if err != nil {
-		slog.Error("s.storage.GetAllClients(r.Context())", slog.String("error", err.Error()))
+		slog.Error("s.server.Storage.GetAllClients(r.Context())", slog.String("error", err.Error()))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not get list of clients",
 			Type: notificationTypeError,
@@ -358,9 +358,9 @@ func (s *adminHandler) clientsList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *adminHandler) usersList(w http.ResponseWriter, r *http.Request) {
-	usersDb, err := s.storage.GetAllUsers(r.Context())
+	usersDb, err := s.server.Storage.GetAllUsers(r.Context())
 	if err != nil {
-		slog.Error("s.storage.GetAllUsers(r.Context())", slog.String("error", err.Error()))
+		slog.Error("s.server.Storage.GetAllUsers(r.Context())", slog.String("error", err.Error()))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not get list of users",
 			Type: notificationTypeError,
@@ -379,7 +379,7 @@ func (s *adminHandler) usersList(w http.ResponseWriter, r *http.Request) {
 
 // to do. The new version will handle fetching the config, rendering the template, and processing updates.
 func (s *adminHandler) configuration(w http.ResponseWriter, r *http.Request) {
-	cfg, err := s.storage.GetConfiguration(r.Context())
+	cfg, err := s.server.Storage.GetConfiguration(r.Context())
 	if err != nil || cfg == nil {
 		slog.Error("failed to get configuration", slog.String("error", err.Error()))
 		// Default to an empty config if not found, to avoid nil pointer dereference
@@ -418,7 +418,7 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 	// Update the LastUpdated field
 	inputConfig.LastUpdated = uint64(time.Now().Unix())
 
-	if err := s.storage.UpdateConfiguration(r.Context(), &inputConfig); err != nil {
+	if err := s.server.Storage.UpdateConfiguration(r.Context(), &inputConfig); err != nil {
 		slog.Error("failed to update configuration", slog.String("error", err.Error()))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not update configuration",

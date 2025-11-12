@@ -77,9 +77,10 @@ templ UserForm(user *UserFormData) {
 					<div class="mb-6">
 						if user != nil {
 							@TextInput("npub", "Nostr Public Key (Npub)",
-							"npub1a1a2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e", user.Npub, false, "Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", true)
+							"npub1a1a2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e", &user.Npub, false, "Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", true)
 						} else {
-							@TextInput("npub", "Nostr Public Key (Npub)", "npub1a1a2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e", "", false, "Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", false)
+							emptyStringValue := ""
+							@TextInput("npub", "Nostr Public Key (Npub)", "npub1a1a2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e", nil, false, "Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", false)
 						}
 					</div>
 				</div>
@@ -89,9 +90,9 @@ templ UserForm(user *UserFormData) {
 					<!-- Preferred Language -->
 					<div class="mb-6">
 						if user != nil {
-							@SelectInput("preferred_language", "Preferred Language", LanguageOptions(), user.PreferredLanguage, true, "Your preferred language for interface and communications")
+							@SelectInput("preferred_language", "Preferred Language", LanguageOptions(), &user.PreferredLanguage, true, "Your preferred language for interface and communications")
 						} else {
-							@SelectInput("preferred_language", "Preferred Language", LanguageOptions(), "en-US", true, "Your preferred language for interface and communications")
+							@SelectInput("preferred_language", "Preferred Language", LanguageOptions(), func() *string { s := "en-US"; return &s }(), true, "Your preferred language for interface and communications")
 						}
 					</div>
 				</div>

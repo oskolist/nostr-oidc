@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/mattn/go-sqlite3 v1.14.24
-	github.com/nbd-wtf/go-nostr v0.52.0
+	github.com/nbd-wtf/go-nostr v0.52.2
 	github.com/pressly/goose/v3 v3.25.0
 	github.com/zitadel/logging v0.6.2
 	github.com/zitadel/oidc/v3 v3.44.0

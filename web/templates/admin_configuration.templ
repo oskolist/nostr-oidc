@@ -17,28 +17,31 @@ templ AdminConfiguration(config storage.Configuration) {
 						hx-swap="none"
 					>
 						<div class="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-8">
+							{{ maxClientsStr := fmt.Sprintf("%d", config.MaxClients) }}
 							<div>
 								@TextInput(
 									"max_clients",
 									"Max Clients",
 									"",
-									fmt.Sprintf("%d", config.MaxClients),
+									&maxClientsStr,
 									true,
 									"",
 									false,
 								)
 							</div>
+							{{ maxUsersStr := fmt.Sprintf("%d", config.MaxUsers) }}
 							<div>
 								@TextInput(
 									"max_users",
 									"Max Users",
 									"",
-									fmt.Sprintf("%d", config.MaxUsers),
+									&maxUsersStr,
 									true,
 									"",
 									false,
 								)
 							</div>
+							{{ registrationTypeStr := string(config.RegistrationType) }}
 							<div>
 								@SelectInput(
 									"registration_type",
@@ -48,9 +51,20 @@ templ AdminConfiguration(config storage.Configuration) {
 										{Value: "paid", Label: "Paid"},
 										{Value: "manual", Label: "Manual"},
 									},
-									string(config.RegistrationType),
+									&registrationTypeStr,
 									true,
 									"",
+								)
+							</div>
+							<div>
+								@TextInput(
+									"nsec",
+									"Nsec (Optional)",
+									"",
+									config.Nsec,
+									false,
+									"",
+									false,
 								)
 							</div>
 							<div class="sm:col-span-2">

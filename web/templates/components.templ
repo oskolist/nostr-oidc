@@ -1,7 +1,6 @@
 package templates
 
-
-templ TextInput(name, label, placeholder, value string, required bool, helpText string, disabled bool) {
+templ TextInput(name, label, placeholder string, value *string, required bool, helpText string, disabled bool) {
 	<div>
 		<label for={ name } class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
 			{ label }
@@ -15,7 +14,9 @@ templ TextInput(name, label, placeholder, value string, required bool, helpText 
 			name={ name }
 			placeholder={ placeholder }
 			readonly?={ disabled }
-			value={ value }
+			if value !=nil {
+				value={ *value }
+			}
 			if required {
 				required
 			}
@@ -28,7 +29,7 @@ templ TextInput(name, label, placeholder, value string, required bool, helpText 
 }
 
 // SelectInput renders a select dropdown field
-templ SelectInput(name, label string, options []SelectOption, value string, required bool, helpText string) {
+templ SelectInput(name, label string, options []SelectOption, value *string, required bool, helpText string) {
 	<div>
 		<label for={ name } class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
 			{ label }
@@ -47,7 +48,9 @@ templ SelectInput(name, label string, options []SelectOption, value string, requ
 		>
 			<option value="">Select an option</option>
 			for _, opt := range options {
-				<option value={ opt.Value } selected={ opt.Value == value }>
+				<option value={ opt.Value } if value !=nil {
+	selected={ opt.Value == *value }
+}>
 					{ opt.Label }
 				</option>
 			}
@@ -117,22 +120,17 @@ templ MultipleInputList(name, label string, values []string, placeholder string,
 			</button>
 		</div>
 		<!-- List of added values -->
-		<div
-			id={ name + "_container" }
-			class="space-y-2"
-		>
+		<div id={ name + "_container" } class="space-y-2">
 			if len(values) == 0 {
 				<div class="text-sm text-gray-500 italic py-2">
 					No items added yet
 				</div>
 			} else {
 				for _, val := range values {
-					<div class="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg input-item">
-						<input
-							type="hidden"
-							name={ name }
-							value={ val }
-						/>
+					<div
+						class="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg input-item"
+					>
+						<input type="hidden" name={ name } value={ val }/>
 						<span class="text-sm text-gray-700 dark:text-gray-300">{ val }</span>
 						<button
 							type="button"
@@ -152,7 +150,7 @@ templ MultipleInputList(name, label string, values []string, placeholder string,
 	</div>
 }
 
-// ========== Helper Types and Functions ========== 
+// ========== Helper Types and Functions ==========
 
 type SelectOption struct {
 	Label string
@@ -163,7 +161,6 @@ type CheckboxOption struct {
 	Label string
 	Value string
 }
-
 
 // Helper function to check if a value exists in a slice
 func contains(slice []string, value string) bool {

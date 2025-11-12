@@ -46,17 +46,17 @@ templ ClientForm(client *ClientFormData) {
 					<!-- Client ID -->
 					<div class="mb-6">
 						if client != nil {
-							@TextInput("client_id", "Client ID", "app_client_123", client.ClientID, true, "Unique identifier for your client application", true)
+							@TextInput("client_id", "Client ID", "app_client_123", &client.ClientID, true, "Unique identifier for your client application", true)
 						} else {
-							@TextInput("client_id", "Client ID", "app_client_123", "", true, "Unique identifier for your client application", false)
+							@TextInput("client_id", "Client ID", "app_client_123", func() *string { s := ""; return &s }(), true, "Unique identifier for your client application", false)
 						}
 					</div>
 					<!-- Application Type -->
 					<div class="mb-6">
 						if client != nil {
-							@SelectInput("application_type", "Application Type", ApplicationTypeOptions(), fmt.Sprintf("%d", client.ApplicationType), true, "Choose the application type - web, user agent, or native")
+							@SelectInput("application_type", "Application Type", ApplicationTypeOptions(), func() *string { s := fmt.Sprintf("%d", client.ApplicationType); return &s }(), true, "Choose the application type - web, user agent, or native")
 						} else {
-							@SelectInput("application_type", "Application Type", ApplicationTypeOptions(), "0", true, "Choose the application type - web, user agent, or native")
+							@SelectInput("application_type", "Application Type", ApplicationTypeOptions(), func() *string { s := "0"; return &s }(), true, "Choose the application type - web, user agent, or native")
 						}
 					</div>
 				</div>
@@ -117,9 +117,9 @@ templ ClientForm(client *ClientFormData) {
 					<!-- Access Token Type -->
 					<div class="mb-6">
 						if client != nil {
-							@SelectInput("access_token_type", "Access Token Type", AccessTokenTypeOptions(), fmt.Sprintf("%d", client.AccessTokenType), true, "Type of access token to issue (Bearer or JWT)")
+							@SelectInput("access_token_type", "Access Token Type", AccessTokenTypeOptions(), func() *string { s := fmt.Sprintf("%d", client.AccessTokenType); return &s }(), true, "Type of access token to issue (Bearer or JWT)")
 						} else {
-							@SelectInput("access_token_type", "Access Token Type", AccessTokenTypeOptions(), "0", true, "Type of access token to issue (Bearer or JWT)")
+							@SelectInput("access_token_type", "Access Token Type", AccessTokenTypeOptions(), func() *string { s := "0"; return &s }(), true, "Type of access token to issue (Bearer or JWT)")
 						}
 					</div>
 				</div>

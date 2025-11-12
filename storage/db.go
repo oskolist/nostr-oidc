@@ -1062,13 +1062,14 @@ func (s *storageDB) SaveConfig(tx *sql.Tx, config *Configuration) error {
 	}
 
 	query := `
-		INSERT INTO configuration (id, max_clients, max_users, last_updated, registration_type)
-		VALUES (1, ?, ?, ?, ?)
+		INSERT INTO configuration (id, max_clients, max_users, last_updated, registration_type, nsec)
+		VALUES (1, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			max_clients = excluded.max_clients,
 			max_users = excluded.max_users,
 			last_updated = excluded.last_updated,
-			registration_type = excluded.registration_type`
+			registration_type = excluded.registration_type,
+			nsec = excluded.nsec`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -1076,7 +1077,7 @@ func (s *storageDB) SaveConfig(tx *sql.Tx, config *Configuration) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(config.MaxClients, config.MaxUsers, config.LastUpdated, config.RegistrationType)
+	_, err = stmt.Exec(config.MaxClients, config.MaxUsers, config.LastUpdated, config.RegistrationType, config.Nsec)
 	if err != nil {
 		return fmt.Errorf("stmt.Exec(SaveConfig): %w", err)
 	}
@@ -1089,7 +1090,7 @@ func (s *storageDB) GetConfig(tx *sql.Tx) (*Configuration, error) {
 		panic("tx cannot be nil")
 	}
 
-	query := `SELECT max_clients, max_users, last_updated, registration_type FROM configuration WHERE id = 1`
+	query := `SELECT max_clients, max_users, last_updated, registration_type, nsec FROM configuration WHERE id = 1`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -1123,6 +1124,7 @@ func (s *storageDB) UpdateConfig(tx *sql.Tx, updates map[string]interface{}) err
 		"max_users":         true,
 		"last_updated":      true,
 		"registration_type": true,
+		"nsec":              true,
 	}
 
 	// Build the SET clause dynamically

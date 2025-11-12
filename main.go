@@ -11,6 +11,7 @@ import (
 
 	"github.com/lescuer97/nostr-oicd/storage"
 	"github.com/lescuer97/nostr-oicd/storage/database"
+	"github.com/lescuer97/nostr-oicd/vertex"
 	"github.com/lescuer97/nostr-oicd/web"
 )
 
@@ -40,7 +41,26 @@ func main() {
 		log.Fatalf("failed to ensure default configuration: %v", err)
 	}
 
-	r := web.SetupServer(&storage)
+	config, err := storage.GetConfiguration(context.Background())
+	if err == nil && config != nil {
+		log.Fatalf("storage.GetConfiguration(context.Background()): %v", err)
+		return
+	}
+
+	server := web.Server{
+		Storage: &storage,
+	}
+
+	if config.RegistrationType == "open" {
+		vrt, err := vertex.NewVertexChecker("")
+		if err != nil {
+			log.Fatalf("vertex.NewVertexChecker(): %v", err)
+		}
+
+		server.Vertex = vrt
+	}
+
+	r := web.SetupServer(&server)
 
 	srv := &http.Server{
 		Addr:    ":" + "8082",
@@ -103,4 +123,3 @@ func ensureConfiguration(ctx context.Context, store *storage.Storage) error {
 	log.Println("Default configuration created successfully")
 	return nil
 }
-
