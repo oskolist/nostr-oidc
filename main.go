@@ -36,7 +36,7 @@ func main() {
 	}
 
 	// Ensure a default configuration exists
-	if err := ensureConfiguration(context.Background(), storage); err != nil {
+	if err := ensureConfiguration(context.Background(), &storage); err != nil {
 		log.Fatalf("failed to ensure default configuration: %v", err)
 	}
 

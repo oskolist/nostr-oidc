@@ -1,0 +1,70 @@
+package templates
+
+import (
+	"fmt"
+	"github.com/lescuer97/nostr-oicd/storage"
+)
+
+templ AdminConfiguration(config storage.Configuration) {
+	@Layout("configuration") {
+		<div class="container mx-auto p-6">
+			<h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Configuration Settings</h2>
+			<div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+				<div class="px-4 py-5 sm:p-6">
+					<form
+						hx-put="/admin/configuration"
+						hx-target="this"
+						hx-swap="none"
+					>
+						<div class="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-8">
+							<div>
+								@TextInput(
+									"max_clients",
+									"Max Clients",
+									"",
+									fmt.Sprintf("%d", config.MaxClients),
+									true,
+									"",
+									false,
+								)
+							</div>
+							<div>
+								@TextInput(
+									"max_users",
+									"Max Users",
+									"",
+									fmt.Sprintf("%d", config.MaxUsers),
+									true,
+									"",
+									false,
+								)
+							</div>
+							<div>
+								@SelectInput(
+									"registration_type",
+									"Registration Type",
+									[]SelectOption{
+										{Value: "open", Label: "Open"},
+										{Value: "paid", Label: "Paid"},
+										{Value: "manual", Label: "Manual"},
+									},
+									string(config.RegistrationType),
+									true,
+									"",
+								)
+							</div>
+							<div class="sm:col-span-2">
+								<button
+									type="submit"
+									class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+								>
+									Save Configuration
+								</button>
+							</div>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	}
+}

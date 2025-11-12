@@ -8,6 +8,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/form/v4"
@@ -55,6 +56,7 @@ func NewAdminHandler(storage Storage) chi.Router {
 	router.Get("/", s.dashboard)
 
 	router.Get("/configuration", s.configuration)
+	router.Put("/configuration", s.updateConfiguration)
 
 	// templs component
 	router.Get("/clients", s.clientsList)
@@ -333,10 +335,6 @@ func (s *adminHandler) dashboard(w http.ResponseWriter, r *http.Request) {
 	templates.Dashboard().Render(r.Context(), w)
 }
 
-func (s *adminHandler) configuration(w http.ResponseWriter, r *http.Request) {
-	templates.Dashboard().Render(r.Context(), w)
-}
-
 func (s *adminHandler) clientsList(w http.ResponseWriter, r *http.Request) {
 	// For now, return empty list - will be populated from storage later
 
@@ -377,4 +375,65 @@ func (s *adminHandler) usersList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	templates.UserList(users).Render(r.Context(), w)
+}
+
+// to do. The new version will handle fetching the config, rendering the template, and processing updates.
+func (s *adminHandler) configuration(w http.ResponseWriter, r *http.Request) {
+	cfg, err := s.storage.GetConfiguration(r.Context())
+	if err != nil || cfg == nil {
+		slog.Error("failed to get configuration", slog.String("error", err.Error()))
+		// Default to an empty config if not found, to avoid nil pointer dereference
+		// In a real app, you might want to create a default config here if not found
+		templates.AdminConfiguration(storage.Configuration{}).Render(r.Context(), w)
+		return
+	}
+
+	renderConfiguration(w, r, *cfg)
+}
+
+func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Request) {
+	var inputConfig storage.Configuration
+
+	if err := r.ParseForm(); err != nil {
+		slog.Error("failed to decode form into config struct", slog.String("error", err.Error()))
+
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not parse form",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	// Use the form decoder to fill the struct
+	if err := decoder.Decode(&inputConfig, r.PostForm); err != nil {
+		slog.Error("failed to decode form into config struct", slog.String("error", err.Error()))
+
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not parse form",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	// Update the LastUpdated field
+	inputConfig.LastUpdated = uint64(time.Now().Unix())
+
+	if err := s.storage.UpdateConfiguration(r.Context(), &inputConfig); err != nil {
+		slog.Error("failed to update configuration", slog.String("error", err.Error()))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not update configuration",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	writeHtmlNotification(templates.NotifInfo{
+		Msg:  "Configuration updated successfully",
+		Type: notificationTypeSuccess,
+	}, r, w)
+}
+
+func renderConfiguration(w http.ResponseWriter, r *http.Request, config storage.Configuration) {
+	config.LastUpdated = uint64(time.Now().Unix())
+	templates.AdminConfiguration(config).Render(r.Context(), w)
 }
