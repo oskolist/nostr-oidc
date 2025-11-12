@@ -72,6 +72,14 @@ CREATE TABLE device_authorizations (
     state TEXT NOT NULL
 );
 
+CREATE TABLE configuration (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    max_clients INTEGER NOT NULL,
+    max_users INTEGER NOT NULL,
+    last_updated INTEGER NOT NULL,
+    registration_type TEXT NOT NULL CHECK (registration_type IN ('open', 'paid', 'manual'))
+);
+
 -- Indexes
 CREATE UNIQUE INDEX idx_clients_id ON clients(id);
 CREATE UNIQUE INDEX idx_auth_requests_id ON auth_requests(id);
@@ -86,6 +94,7 @@ CREATE UNIQUE INDEX idx_device_authorizations_user_code ON device_authorizations
 
 -- +goose Down
 
+DROP TABLE IF EXISTS configuration;
 DROP TABLE IF EXISTS device_authorizations;
 DROP TABLE IF EXISTS auth_requests;
 DROP TABLE IF EXISTS refresh_tokens;

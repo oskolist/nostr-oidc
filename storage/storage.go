@@ -1304,6 +1304,88 @@ func (s *Storage) GetUserById(ctx context.Context, id string) (*User, error) {
 	return user, nil
 }
 
+// GetConfiguration retrieves the application configuration from the database
+func (s *Storage) GetConfiguration(ctx context.Context) (*Configuration, error) {
+	
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	config, err := s.db.GetConfig(tx)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.GetConfig(tx). %w", err)
+	}
+
+	// Validate the retrieved configuration
+	if err := validateConfiguration(config); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return config, nil
+}
+
+// UpdateConfiguration updates the application configuration in the database
+func (s *Storage) UpdateConfiguration(ctx context.Context, config *Configuration) error {
+	if config == nil {
+		return fmt.Errorf("configuration cannot be nil")
+	}
+
+	// Validate the configuration before updating
+	if err := validateConfiguration(config); err != nil {
+		return fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	err = s.db.SaveConfig(tx, config)
+	if err != nil {
+		return fmt.Errorf("s.db.SaveConfig(tx, config). %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return nil
+}
+
+// validateConfiguration validates a Configuration struct
+func validateConfiguration(config *Configuration) error {
+	if config == nil {
+		return fmt.Errorf("configuration cannot be nil")
+	}
+
+	// Validate MaxClients and MaxUsers are non-negative
+	if config.MaxClients < 0 {
+		return fmt.Errorf("max_clients must be non-negative")
+	}
+	if config.MaxUsers < 0 {
+		return fmt.Errorf("max_users must be non-negative")
+	}
+
+	// Validate RegistrationType is one of the allowed values
+	validTypes := map[string]bool{
+		"open":   true,
+		"paid":   true,
+		"manual": true,
+	}
+	if !validTypes[config.RegistrationType] {
+		return fmt.Errorf("registration_type must be one of: open, paid, manual (got: %s)", config.RegistrationType)
+	}
+
+	return nil
+}
+
 func (s *Storage) AddUser(ctx context.Context, user User) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

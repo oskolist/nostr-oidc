@@ -311,6 +311,18 @@ type deviceAuthorizationEntry struct {
 	state      *op.DeviceAuthorizationState
 }
 
+// Configuration represents the application's global settings
+type Configuration struct {
+	MaxClients       uint64 `validate:"gte=0"`
+	MaxUsers         uint64 `validate:"gte=0"`
+	LastUpdated      uint64 `validate:"gte=0"`
+	RegistrationType string `validate:"oneof=open paid manual"`
+}
+
+func (c *Configuration) ScanRow(row interface{ Scan(...interface{}) error }) error {
+	return row.Scan(&c.MaxClients, &c.MaxUsers, &c.LastUpdated, &c.RegistrationType)
+}
+
 // ScanRow implements a pgx-style row scanner for deviceAuthorizationEntry
 // This method scans a database row directly into the deviceAuthorizationEntry struct fields
 // Expected column order: device_code, user_code, state

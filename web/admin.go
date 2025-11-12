@@ -25,6 +25,10 @@ type administration interface {
 	GetUserById(ctx context.Context, id string) (*storage.User, error)
 	// AddUser(ctx context.Context, client storage.User) error
 	EditUser(ctx context.Context, client storage.User) error
+
+	// New methods for configuration management
+	GetConfiguration(ctx context.Context) (*storage.Configuration, error)
+	UpdateConfiguration(ctx context.Context, config *storage.Configuration) error
 }
 
 // NewSignupHandler creates a new signup handler
@@ -49,6 +53,10 @@ func NewAdminHandler(storage Storage) chi.Router {
 
 	// New dashboard routes
 	router.Get("/", s.dashboard)
+
+	router.Get("/configuration", s.configuration)
+
+	// templs component
 	router.Get("/clients", s.clientsList)
 	router.Get("/users", s.usersList)
 
@@ -322,6 +330,10 @@ func (s *adminHandler) addUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *adminHandler) dashboard(w http.ResponseWriter, r *http.Request) {
+	templates.Dashboard().Render(r.Context(), w)
+}
+
+func (s *adminHandler) configuration(w http.ResponseWriter, r *http.Request) {
 	templates.Dashboard().Render(r.Context(), w)
 }
 

@@ -8,9 +8,15 @@ import (
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/go-playground/validator/v10"
 	"github.com/zitadel/oidc/v3/pkg/op"
 )
 
+var validate *validator.Validate
+
+func init() {
+	validate = validator.New(validator.WithRequiredStructEnabled())
+}
 type storageDB struct {
 	db *sql.DB
 }
@@ -1039,4 +1045,123 @@ func (s *storageDB) SearchAllUsers(tx *sql.Tx) ([]User, error) {
 	}
 
 	return users, nil
+}
+
+// SaveConfig inserts or updates the application configuration
+func (s *storageDB) SaveConfig(tx *sql.Tx, config *Configuration) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+	if config == nil {
+		panic("config cannot be nil")
+	}
+
+	// Validate the configuration struct
+	if err := validate.Struct(config); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
+
+	query := `
+		INSERT INTO configuration (id, max_clients, max_users, last_updated, registration_type)
+		VALUES (1, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			max_clients = excluded.max_clients,
+			max_users = excluded.max_users,
+			last_updated = excluded.last_updated,
+			registration_type = excluded.registration_type`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("tx.Prepare(SaveConfig): %w", err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(config.MaxClients, config.MaxUsers, config.LastUpdated, config.RegistrationType)
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(SaveConfig): %w", err)
+	}
+	return nil
+}
+
+// GetConfig retrieves the application configuration
+func (s *storageDB) GetConfig(tx *sql.Tx) (*Configuration, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `SELECT max_clients, max_users, last_updated, registration_type FROM configuration WHERE id = 1`
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return nil, fmt.Errorf("tx.Prepare(GetConfig): %w", err)
+	}
+	defer stmt.Close()
+
+	var config Configuration
+	row := stmt.QueryRow()
+
+	err = config.ScanRow(row)
+	if err != nil {
+		return nil, fmt.Errorf("config.ScanRow(GetConfig): %w", err)
+	}
+
+	return &config, nil
+}
+
+// UpdateConfig modifies specific fields of the application configuration
+func (s *storageDB) UpdateConfig(tx *sql.Tx, updates map[string]interface{}) error {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+	if len(updates) == 0 {
+		return fmt.Errorf("no updates provided")
+	}
+
+	// Map of valid field names to column names
+	validFields := map[string]bool{
+		"max_clients":       true,
+		"max_users":         true,
+		"last_updated":      true,
+		"registration_type": true,
+	}
+
+	// Build the SET clause dynamically
+	setClauses := []string{}
+	args := []interface{}{}
+
+	for field, value := range updates {
+		if !validFields[field] {
+			return fmt.Errorf("invalid field: %s", field)
+		}
+		setClauses = append(setClauses, field+" = ?")
+		args = append(args, value)
+	}
+
+	// Add the WHERE clause
+	query := `UPDATE configuration SET ` + joinSetClauses(setClauses) + ` WHERE id = 1`
+	args = append(args) // id is already in WHERE clause
+
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		return fmt.Errorf("tx.Prepare(UpdateConfig): %w", err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(args...)
+	if err != nil {
+		return fmt.Errorf("stmt.Exec(UpdateConfig): %w", err)
+	}
+	return nil
+}
+
+// joinSetClauses joins SET clause parts with commas
+func joinSetClauses(clauses []string) string {
+	result := ""
+	for i, clause := range clauses {
+		if i > 0 {
+			result += ", "
+		}
+		result += clause
+	}
+	return result
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -33,6 +34,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("storage.NewStorage(db). %v", err)
 	}
+
+	// Ensure a default configuration exists
+	if err := ensureConfiguration(context.Background(), storage); err != nil {
+		log.Fatalf("failed to ensure default configuration: %v", err)
+	}
+
 	r := web.SetupServer(&storage)
 
 	srv := &http.Server{
@@ -65,3 +72,35 @@ func main() {
 
 	log.Println("server exiting")
 }
+
+// ensureConfiguration checks if a configuration exists in the database.
+// If it doesn't exist, it creates a default one with:
+// - RegistrationType: manual
+// - MaxClients: 5
+// - MaxUsers: 1000
+func ensureConfiguration(ctx context.Context, store *storage.Storage) error {
+	// Try to get the current configuration
+	config, err := store.GetConfiguration(ctx)
+	if err == nil && config != nil {
+		// Configuration exists, no need to create one
+		log.Println("Configuration already exists")
+		return nil
+	}
+
+	// Configuration doesn't exist, create a default one
+	defaultConfig := &storage.Configuration{
+		RegistrationType: "manual",
+		MaxClients:       5,
+		MaxUsers:         1000,
+		LastUpdated:      uint64(time.Now().Unix()),
+	}
+
+	log.Println("Creating default configuration...")
+	if err := store.UpdateConfiguration(ctx, defaultConfig); err != nil {
+		return fmt.Errorf("failed to create default configuration: %w", err)
+	}
+
+	log.Println("Default configuration created successfully")
+	return nil
+}
+
