@@ -1084,13 +1084,13 @@ func (s *storageDB) SaveConfig(tx *sql.Tx, config *Configuration) error {
 	return nil
 }
 
-// GetConfig retrieves the application configuration
+// GetConfig retrieves the application configuration without the nsec field
 func (s *storageDB) GetConfig(tx *sql.Tx) (*Configuration, error) {
 	if tx == nil {
 		panic("tx cannot be nil")
 	}
 
-	query := `SELECT max_clients, max_users, last_updated, registration_type, nsec FROM configuration WHERE id = 1`
+	query := `SELECT max_clients, max_users, last_updated, registration_type FROM configuration WHERE id = 1`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -1101,69 +1101,37 @@ func (s *storageDB) GetConfig(tx *sql.Tx) (*Configuration, error) {
 	var config Configuration
 	row := stmt.QueryRow()
 
-	err = config.ScanRow(row)
+	err = config.ScanRowWithoutNsec(row)
 	if err != nil {
-		return nil, fmt.Errorf("config.ScanRow(GetConfig): %w", err)
+		return nil, fmt.Errorf("config.ScanRowWithoutNsec(GetConfig): %w", err)
 	}
 
 	return &config, nil
 }
 
-// UpdateConfig modifies specific fields of the application configuration
-func (s *storageDB) UpdateConfig(tx *sql.Tx, updates map[string]interface{}) error {
+// GetConfigWithNsec retrieves the application configuration including the nsec field
+func (s *storageDB) GetConfigWithNsec(tx *sql.Tx) (*Configuration, error) {
 	if tx == nil {
 		panic("tx cannot be nil")
 	}
-	if len(updates) == 0 {
-		return fmt.Errorf("no updates provided")
-	}
 
-	// Map of valid field names to column names
-	validFields := map[string]bool{
-		"max_clients":       true,
-		"max_users":         true,
-		"last_updated":      true,
-		"registration_type": true,
-		"nsec":              true,
-	}
-
-	// Build the SET clause dynamically
-	setClauses := []string{}
-	args := []interface{}{}
-
-	for field, value := range updates {
-		if !validFields[field] {
-			return fmt.Errorf("invalid field: %s", field)
-		}
-		setClauses = append(setClauses, field+" = ?")
-		args = append(args, value)
-	}
-
-	// Add the WHERE clause
-	query := `UPDATE configuration SET ` + joinSetClauses(setClauses) + ` WHERE id = 1`
-	args = append(args) // id is already in WHERE clause
+	query := `SELECT max_clients, max_users, last_updated, registration_type, nsec FROM configuration WHERE id = 1`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
-		return fmt.Errorf("tx.Prepare(UpdateConfig): %w", err)
+		return nil, fmt.Errorf("tx.Prepare(GetConfigWithNsec): %w", err)
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(args...)
+	var config Configuration
+	row := stmt.QueryRow()
+
+	err = config.ScanRow(row)
 	if err != nil {
-		return fmt.Errorf("stmt.Exec(UpdateConfig): %w", err)
+		return nil, fmt.Errorf("config.ScanRow(GetConfigWithNsec): %w", err)
 	}
-	return nil
+
+	return &config, nil
 }
 
-// joinSetClauses joins SET clause parts with commas
-func joinSetClauses(clauses []string) string {
-	result := ""
-	for i, clause := range clauses {
-		if i > 0 {
-			result += ", "
-		}
-		result += clause
-	}
-	return result
-}
+

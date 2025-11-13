@@ -1,6 +1,6 @@
 package templates
 
-templ TextInput(name, label, placeholder string, value *string, required bool, helpText string, disabled bool) {
+templ TextInput(name, label, placeholder string, value *string, required bool, helpText string, disabled bool, inputType *string) {
 	<div>
 		<label for={ name } class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
 			{ label }
@@ -9,12 +9,16 @@ templ TextInput(name, label, placeholder string, value *string, required bool, h
 			}
 		</label>
 		<input
-			type="text"
+			if inputType != nil {
+				type={ *inputType }
+			} else {
+				type="text"
+			}
 			id={ name }
 			name={ name }
 			placeholder={ placeholder }
 			readonly?={ disabled }
-			if value !=nil {
+			if value != nil {
 				value={ *value }
 			}
 			if required {
@@ -48,9 +52,12 @@ templ SelectInput(name, label string, options []SelectOption, value *string, req
 		>
 			<option value="">Select an option</option>
 			for _, opt := range options {
-				<option value={ opt.Value } if value !=nil {
-	selected={ opt.Value == *value }
-}>
+				<option
+					value={ opt.Value }
+					if value !=nil {
+						selected={ opt.Value == *value }
+					}
+				>
 					{ opt.Label }
 				</option>
 			}

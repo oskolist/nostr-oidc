@@ -46,9 +46,9 @@ templ ClientForm(client *ClientFormData) {
 					<!-- Client ID -->
 					<div class="mb-6">
 						if client != nil {
-							@TextInput("client_id", "Client ID", "app_client_123", &client.ClientID, true, "Unique identifier for your client application", true)
+							@TextInput("client_id", "Client ID", "app_client_123", &client.ClientID, true, "Unique identifier for your client application", true, nil)
 						} else {
-							@TextInput("client_id", "Client ID", "app_client_123", func() *string { s := ""; return &s }(), true, "Unique identifier for your client application", false)
+							@TextInput("client_id", "Client ID", "app_client_123", nil, true, "Unique identifier for your client application", false, nil)
 						}
 					</div>
 					<!-- Application Type -->
@@ -154,7 +154,6 @@ templ ClientForm(client *ClientFormData) {
 	</div>
 }
 
-
 // ApplicationTypeOptions returns the available application types
 func ApplicationTypeOptions() []SelectOption {
 	return []SelectOption{
@@ -218,7 +217,6 @@ func ResponseTypeOptions() []CheckboxOption {
 	}
 	return options
 }
-
 
 // getFormEndpoint determines the form submission endpoint based on whether the client is nil
 func getFormEndpoint(client *ClientFormData) string {

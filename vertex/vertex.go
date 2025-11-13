@@ -3,6 +3,7 @@ package vertex
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -19,6 +20,8 @@ type VertexChecker struct {
 	relay *nostr.Relay
 }
 
+var ErrInvalidNsec = errors.New("Invalid nsec")
+
 func NewVertexChecker(nsec string) (*VertexChecker, error) {
 	relay, err := nostr.RelayConnect(context.Background(), vertexRelay)
 	if err != nil {
@@ -27,17 +30,17 @@ func NewVertexChecker(nsec string) (*VertexChecker, error) {
 
 	prefix, value, err := nip19.Decode(nsec)
 	if err != nil {
-		return nil, fmt.Errorf("nip19.Decode(nsec). %w", err)
+		return nil, errors.Join(ErrInvalidNsec, fmt.Errorf("nip19.Decode(nsec). %w", err))
 	}
 
 	if prefix != "nsec" {
-		return nil, fmt.Errorf("nsec is no correct %w", err)
+		return nil, fmt.Errorf("nsec is no correct %w", ErrInvalidNsec)
 	}
 
 	hexPrivKey := value.(string)
 	pkBytes, err := hex.DecodeString(hexPrivKey)
 	if err != nil {
-		return nil, fmt.Errorf("hex.DecodeString(hexPrivKey). %w", err)
+		return nil, errors.Join(ErrInvalidNsec, fmt.Errorf("hex.DecodeString(hexPrivKey). %w", err))
 	}
 
 	privKey, _ := btcec.PrivKeyFromBytes(pkBytes)
@@ -50,7 +53,7 @@ func NewVertexChecker(nsec string) (*VertexChecker, error) {
 	return vertexChecker, nil
 }
 
-func (v *VertexChecker) npubHasEnoughReputation(npub btcec.PublicKey) (bool, error) {
+func (v *VertexChecker) NpubHasEnoughReputation(npub *btcec.PublicKey) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if !v.relay.IsConnected() {

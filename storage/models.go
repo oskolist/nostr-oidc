@@ -316,7 +316,8 @@ type Configuration struct {
 	MaxClients       uint64  `form:"max_clients" validate:"gte=0"`
 	MaxUsers         uint64  `form:"max_users" validate:"gte=0"`
 	LastUpdated      uint64  `validate:"gte=0"`
-	RegistrationType string  `form:"registration_type" validate:"oneof=open paid manual"`
+	// TODO: make paid version
+	RegistrationType string  `form:"registration_type" validate:"oneof=open manual"`
 	Nsec             *string `form:"nsec"`
 }
 
@@ -331,6 +332,15 @@ func (c *Configuration) ScanRow(row interface{ Scan(...interface{}) error }) err
 	} else {
 		c.Nsec = nil
 	}
+	return nil
+}
+
+func (c *Configuration) ScanRowWithoutNsec(row interface{ Scan(...interface{}) error }) error {
+	if err := row.Scan(&c.MaxClients, &c.MaxUsers, &c.LastUpdated, &c.RegistrationType); err != nil {
+		return err
+	}
+	// Ensure Nsec is nil when not queried
+	c.Nsec = nil
 	return nil
 }
 

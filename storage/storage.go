@@ -1306,7 +1306,7 @@ func (s *Storage) GetUserById(ctx context.Context, id string) (*User, error) {
 
 // GetConfiguration retrieves the application configuration from the database
 func (s *Storage) GetConfiguration(ctx context.Context) (*Configuration, error) {
-	
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
@@ -1328,6 +1328,58 @@ func (s *Storage) GetConfiguration(ctx context.Context) (*Configuration, error) 
 		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
 	return config, nil
+}
+
+// GetConfiguration retrieves the application configuration from the database
+func (s *Storage) GetConfigurationWithNsec(ctx context.Context) (*Configuration, error) {
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	config, err := s.db.GetConfigWithNsec(tx)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.GetConfig(tx). %w", err)
+	}
+
+	// Validate the retrieved configuration
+	if err := validateConfiguration(config); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return config, nil
+}
+
+func (s *Storage) NsecIsRegistered(ctx context.Context) (bool, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	config, err := s.db.GetConfigWithNsec(tx)
+	if err != nil {
+		return false, fmt.Errorf("s.db.GetConfig(tx). %w", err)
+	}
+
+	// Validate the retrieved configuration
+	if err := validateConfiguration(config); err != nil {
+		return false, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return false, fmt.Errorf("tx.Commit(). %w", err)
+	}
+
+	return config.Nsec != nil, nil
+
 }
 
 // UpdateConfiguration updates the application configuration in the database
@@ -1359,28 +1411,15 @@ func (s *Storage) UpdateConfiguration(ctx context.Context, config *Configuration
 	return nil
 }
 
-// validateConfiguration validates a Configuration struct
+// validateConfiguration validates a Configuration struct using the validator library
 func validateConfiguration(config *Configuration) error {
 	if config == nil {
 		return fmt.Errorf("configuration cannot be nil")
 	}
 
-	// Validate MaxClients and MaxUsers are non-negative
-	if config.MaxClients < 0 {
-		return fmt.Errorf("max_clients must be non-negative")
-	}
-	if config.MaxUsers < 0 {
-		return fmt.Errorf("max_users must be non-negative")
-	}
-
-	// Validate RegistrationType is one of the allowed values
-	validTypes := map[string]bool{
-		"open":   true,
-		"paid":   true,
-		"manual": true,
-	}
-	if !validTypes[config.RegistrationType] {
-		return fmt.Errorf("registration_type must be one of: open, paid, manual (got: %s)", config.RegistrationType)
+	// Use the validator library to validate the struct
+	if err := validate.Struct(config); err != nil {
+		return fmt.Errorf("configuration validation failed: %w", err)
 	}
 
 	return nil

@@ -14,6 +14,7 @@ import (
 	"github.com/go-playground/form/v4"
 	"github.com/google/uuid"
 	"github.com/lescuer97/nostr-oicd/storage"
+	"github.com/lescuer97/nostr-oicd/vertex"
 	"github.com/lescuer97/nostr-oicd/web/templates"
 )
 
@@ -30,6 +31,8 @@ type administration interface {
 	// New methods for configuration management
 	GetConfiguration(ctx context.Context) (*storage.Configuration, error)
 	UpdateConfiguration(ctx context.Context, config *storage.Configuration) error
+
+	NsecIsRegistered(ctx context.Context) (bool, error)
 }
 
 // NewSignupHandler creates a new signup handler
@@ -384,11 +387,20 @@ func (s *adminHandler) configuration(w http.ResponseWriter, r *http.Request) {
 		slog.Error("failed to get configuration", slog.String("error", err.Error()))
 		// Default to an empty config if not found, to avoid nil pointer dereference
 		// In a real app, you might want to create a default config here if not found
-		templates.AdminConfiguration(storage.Configuration{}).Render(r.Context(), w)
+		templates.NotFoundPage("Could not get the baseline configuration").Render(r.Context(), w)
 		return
 	}
 
-	renderConfiguration(w, r, *cfg)
+	nsecRegistered, err := s.server.Storage.NsecIsRegistered(r.Context())
+	if err != nil {
+		slog.Error("failed to get configuration", slog.String("error", err.Error()))
+		// Default to an empty config if not found, to avoid nil pointer dereference
+		// In a real app, you might want to create a default config here if not found
+		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
+		return
+	}
+
+	templates.AdminConfiguration(*cfg, nsecRegistered).Render(r.Context(), w)
 }
 
 func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Request) {
@@ -415,6 +427,29 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	if inputConfig.Nsec != nil {
+		vtx, err := vertex.NewVertexChecker(*inputConfig.Nsec)
+		if err != nil {
+			if errors.Is(err, vertex.ErrInvalidNsec) {
+				writeHtmlNotification(templates.NotifInfo{
+					Msg:  "You don't have a valid nsec",
+					Type: notificationTypeError,
+				}, r, w)
+				return
+			}
+		}
+
+		s.server.Vertex = vtx
+	}
+
+	if inputConfig.RegistrationType == "open" && inputConfig.Nsec == nil {
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "You don't have a valid nsec. You need one for open registration type",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
 	// Update the LastUpdated field
 	inputConfig.LastUpdated = uint64(time.Now().Unix())
 
@@ -431,9 +466,4 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 		Msg:  "Configuration updated successfully",
 		Type: notificationTypeSuccess,
 	}, r, w)
-}
-
-func renderConfiguration(w http.ResponseWriter, r *http.Request, config storage.Configuration) {
-	config.LastUpdated = uint64(time.Now().Unix())
-	templates.AdminConfiguration(config).Render(r.Context(), w)
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/lescuer97/nostr-oicd/storage"
+	"github.com/lescuer97/nostr-oicd/vertex"
 	"github.com/lescuer97/nostr-oicd/web/templates"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/zitadel/oidc/v3/pkg/op"
@@ -74,7 +75,7 @@ func (l *login) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	templates.Login("test", config.RegistrationType != "manual" ).Render(r.Context(), w)
+	templates.Login("test", config.RegistrationType != "manual").Render(r.Context(), w)
 }
 
 func (l *login) checkLoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -120,6 +121,7 @@ func (l *login) checkLoginHandler(w http.ResponseWriter, r *http.Request) {
 // signupHandler handles user registration with Nostr signature verification
 type signupHandler struct {
 	storage          authenticate
+	vertex           *vertex.VertexChecker
 	mu               sync.Mutex
 	activeChallenges map[string]string // maps challenge to IP for one-time use
 }
@@ -289,6 +291,25 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 		}, r, w)
 		return
 	}
+
+	valid, err := s.vertex.NpubHasEnoughReputation(pubkey)
+	if err == nil {
+		// User already exists
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "There was a problem signing you up",
+			Type: notificationTypeWarning,
+		}, r, w)
+		return
+	}
+
+	if !valid {
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Your npub does not have enough web of trust",
+			Type: notificationTypeWarning,
+		}, r, w)
+		return
+	}
+
 	// Any error other than "not found" should be reported, but we'll proceed optimistically
 	slog.Debug("CheckUserNpub result", slog.String("error", err.Error()))
 

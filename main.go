@@ -41,10 +41,9 @@ func main() {
 		log.Fatalf("failed to ensure default configuration: %v", err)
 	}
 
-	config, err := storage.GetConfiguration(context.Background())
-	if err == nil && config != nil {
-		log.Fatalf("storage.GetConfiguration(context.Background()): %v", err)
-		return
+	config, err := storage.GetConfigurationWithNsec(context.Background())
+	if err != nil {
+		log.Fatalf("storage.GetConfigurationWithNsec(context.Background()). %v", err)
 	}
 
 	server := web.Server{
@@ -52,7 +51,11 @@ func main() {
 	}
 
 	if config.RegistrationType == "open" {
-		vrt, err := vertex.NewVertexChecker("")
+		if config.Nsec == nil {
+			log.Panicf("you don't have an nsec in your configuration. This should have never happened because it should have been required when making the registration type opened")
+		}
+
+		vrt, err := vertex.NewVertexChecker(*config.Nsec)
 		if err != nil {
 			log.Fatalf("vertex.NewVertexChecker(): %v", err)
 		}
