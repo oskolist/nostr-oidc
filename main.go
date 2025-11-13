@@ -64,7 +64,6 @@ func main() {
 	}
 
 	r := web.SetupServer(&server)
-
 	srv := &http.Server{
 		Addr:    ":" + "8082",
 		Handler: r,

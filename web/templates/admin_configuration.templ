@@ -59,7 +59,7 @@ templ AdminConfiguration(config storage.Configuration, nsecRegistered bool) {
 								{{
 									label := "Nsec (Optional)"
 									if nsecRegistered {
-										label += " \n This value is set but it doesn't show for security reasons"
+										label += ". This value is set but it doesn't show for security reasons"
 									}
 								}}
 								@TextInput(

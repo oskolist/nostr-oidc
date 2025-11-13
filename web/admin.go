@@ -427,7 +427,9 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if inputConfig.Nsec != nil {
+
+	emptyNsecField := inputConfig.Nsec == nil || len(*inputConfig.Nsec) == 0
+	if !emptyNsecField {
 		vtx, err := vertex.NewVertexChecker(*inputConfig.Nsec)
 		if err != nil {
 			if errors.Is(err, vertex.ErrInvalidNsec) {
@@ -437,12 +439,27 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 				}, r, w)
 				return
 			}
+			slog.Error("vertex.NewVertexChecker(*inputConfig.Nsec)", slog.String("error", err.Error()))
+			writeHtmlNotification(templates.NotifInfo{
+				Msg:  "Something went wrong while registering the user",
+				Type: notificationTypeError,
+			}, r, w)
+			return
 		}
 
 		s.server.Vertex = vtx
 	}
 
-	if inputConfig.RegistrationType == "open" && inputConfig.Nsec == nil {
+	nsecRegistered, err := s.server.Storage.NsecIsRegistered(r.Context())
+	if err != nil {
+		slog.Error("failed to get configuration", slog.String("error", err.Error()))
+		// Default to an empty config if not found, to avoid nil pointer dereference
+		// In a real app, you might want to create a default config here if not found
+		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
+		return
+	}
+
+	if inputConfig.RegistrationType == "open" && (emptyNsecField || !nsecRegistered) {
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "You don't have a valid nsec. You need one for open registration type",
 			Type: notificationTypeError,

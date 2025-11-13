@@ -6,7 +6,7 @@ type NotifInfo struct {
 }
 
 templ Notification(notifInfo NotifInfo) {
-	<div id="snackbar" remove-me="3s" class={ notifInfo.Type }>
+	<div id="snackbar" remove-me="5s" class={ notifInfo.Type }>
 		<span>{ notifInfo.Msg }</span>
 	</div>
 }

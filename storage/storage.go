@@ -1399,6 +1399,15 @@ func (s *Storage) UpdateConfiguration(ctx context.Context, config *Configuration
 	}
 	defer tx.Rollback()
 
+	configWithNsec, err := s.db.GetConfigWithNsec(tx)
+	if err != nil {
+		return fmt.Errorf("s.db.SaveConfig(tx, config). %w", err)
+	}
+
+	if config.Nsec == nil || len(*config.Nsec) == 0 {
+		config.Nsec = configWithNsec.Nsec
+	}
+
 	err = s.db.SaveConfig(tx, config)
 	if err != nil {
 		return fmt.Errorf("s.db.SaveConfig(tx, config). %w", err)

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -137,10 +138,11 @@ func writeHtmlNotification(info templates.NotifInfo, r *http.Request, w http.Res
 }
 
 // NewSignupHandler creates a new signup handler
-func NewSignupHandler(auth authenticate) chi.Router {
+func NewSignupHandler(auth authenticate, vtx *vertex.VertexChecker) chi.Router {
 	s := &signupHandler{
 		storage:          auth,
 		activeChallenges: make(map[string]string),
+		vertex:           vtx,
 	}
 	router := chi.NewRouter()
 	router.Get("/", s.displaySignupForm)
@@ -293,7 +295,16 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	valid, err := s.vertex.NpubHasEnoughReputation(pubkey)
-	if err == nil {
+	if err != nil {
+		if errors.Is(err, vertex.RelayError) {
+			slog.Error("There was a problem with vertex", slog.String("type", "vertex"), slog.Any("error", err))
+			writeHtmlNotification(templates.NotifInfo{
+				Msg:  "There was a problem validating your npub",
+				Type: notificationTypeError,
+			}, r, w)
+			return
+
+		}
 		// User already exists
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "There was a problem signing you up",
@@ -309,9 +320,6 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 		}, r, w)
 		return
 	}
-
-	// Any error other than "not found" should be reported, but we'll proceed optimistically
-	slog.Debug("CheckUserNpub result", slog.String("error", err.Error()))
 
 	// Create new user
 	userID := uuid.New().String()

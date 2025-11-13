@@ -3,12 +3,13 @@ package vertex
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/nbd-wtf/go-nostr/nip19"
 )
@@ -21,6 +22,7 @@ type VertexChecker struct {
 }
 
 var ErrInvalidNsec = errors.New("Invalid nsec")
+var RelayError = errors.New("vertex lab error")
 
 func NewVertexChecker(nsec string) (*VertexChecker, error) {
 	relay, err := nostr.RelayConnect(context.Background(), vertexRelay)
@@ -45,12 +47,17 @@ func NewVertexChecker(nsec string) (*VertexChecker, error) {
 
 	privKey, _ := btcec.PrivKeyFromBytes(pkBytes)
 
-	vertexChecker := &VertexChecker{
+	vertexChecker := VertexChecker{
 		nsec:  privKey,
 		relay: relay,
 	}
 
-	return vertexChecker, nil
+	return &vertexChecker, nil
+}
+
+type VertexResult struct {
+	Npub string  `json:"npub"`
+	Rank float64 `json:"rank"`
 }
 
 func (v *VertexChecker) NpubHasEnoughReputation(npub *btcec.PublicKey) (bool, error) {
@@ -67,10 +74,10 @@ func (v *VertexChecker) NpubHasEnoughReputation(npub *btcec.PublicKey) (bool, er
 		Kind: 5312,
 		Tags: nostr.Tags{
 			nostr.Tag{
-				"target", hex.EncodeToString(npub.SerializeCompressed()),
+				"param", "target", hex.EncodeToString(schnorr.SerializePubKey(npub)),
 			},
 			nostr.Tag{
-				"limit", "5",
+				"param", "limit", "1",
 			},
 		},
 	}
@@ -93,11 +100,27 @@ func (v *VertexChecker) NpubHasEnoughReputation(npub *btcec.PublicKey) (bool, er
 		return false, fmt.Errorf("v.relay.Publish(ctx, event).  %w", err)
 	}
 
-	events, err := v.relay.QuerySync(ctx, filter)
+	responses, err := v.relay.QueryEvents(ctx, filter)
 	if err != nil {
-		return false, fmt.Errorf("v.relay.Subscribe(ctx, nostr.Filters{filter}).  %w", err)
+		return false, fmt.Errorf("v.relay.QueryEvents(ctx, filter).  %w", err)
 	}
 
-	log.Printf("\n events: %+v", events)
-	return false, nil
+	// extract the first response
+	response := <-responses
+
+	if response.Kind == 7000 {
+		return false, fmt.Errorf("%w, event: %s", RelayError, response.String())
+	}
+
+	var vertexEvents []VertexResult
+	err = json.Unmarshal([]byte(response.Content), &vertexEvents)
+	if err != nil {
+		return false, errors.Join(RelayError, fmt.Errorf("json.Unmarshal([]byte(response.Content), &vertexEvents).  %w", err))
+	}
+
+	if len(vertexEvents) == 0 {
+		return false, errors.Join(RelayError, fmt.Errorf("Vertex context are empty"))
+	}
+
+	return vertexEvents[0].Rank >= 0.000015, nil
 }

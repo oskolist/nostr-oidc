@@ -107,7 +107,7 @@ func SetupServer(server *Server, extraOptions ...op.Option) chi.Router {
 	router.Mount("/login/", http.StripPrefix("/login", l.router))
 
 	// Mount signup routes
-	signupRouter := NewSignupHandler(server.Storage)
+	signupRouter := NewSignupHandler(server.Storage, server.Vertex)
 	router.Mount("/signup", http.StripPrefix("/signup", signupRouter))
 
 	adminRouter := NewAdminHandler(server)
