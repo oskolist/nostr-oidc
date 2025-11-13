@@ -34,6 +34,7 @@ type deviceAuthenticate interface {
 
 	// DenyDeviceAuthorization marks a device authorization entry as Denied.
 	DenyDeviceAuthorization(ctx context.Context, userCode string) error
+	authenticate
 }
 
 type deviceLogin struct {
@@ -53,7 +54,14 @@ func registerDeviceAuth(storage Storage, router chi.Router) {
 }
 
 func (d *deviceLogin) userCodeHandler(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
+	config, err := d.storage.GetConfiguration(r.Context())
+	if err != nil {
+		slog.Error("Failed to generate challenge", slog.String("error", err.Error()))
+		http.Error(w, "Error generating challenge", http.StatusInternalServerError)
+		return
+	}
+
+	err = r.ParseForm()
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		// renderUserCode(w, err)
@@ -67,8 +75,8 @@ func (d *deviceLogin) userCodeHandler(w http.ResponseWriter, r *http.Request) {
 		// renderUserCode(w, err)
 		return
 	}
-	log.Printf("\n userCode: %+v", userCode)
-	templates.Login(userCode).Render(r.Context(), w)
+
+	templates.Login(userCode, config.RegistrationType != "manual").Render(r.Context(), w)
 }
 
 func redirectBack(w http.ResponseWriter, r *http.Request, prompt string) {

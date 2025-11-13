@@ -56,22 +56,25 @@ type authenticate interface {
 	AddUser(ctx context.Context, user storage.User) error
 	GetAllClients(ctx context.Context) ([]storage.Client, error)
 	GetAllUsers(ctx context.Context) ([]storage.User, error)
+
+	// gets the config
+	GetConfiguration(ctx context.Context) (*storage.Configuration, error)
 }
 
 func (l *login) loginHandler(w http.ResponseWriter, r *http.Request) {
-	// l.authenticate.
-	// err := r.ParseForm()
-	// if err != nil {
-	// 	http.Error(w, fmt.Sprintf("cannot parse form:%s", err), http.StatusInternalServerError)
-	// 	return
-	// }
+	config, err := l.authenticate.GetConfiguration(r.Context())
+	if err != nil {
+		slog.Error("Failed to generate challenge", slog.String("error", err.Error()))
+		http.Error(w, "Error generating challenge", http.StatusInternalServerError)
+		return
+	}
 
-	// nonce, err := serverData.auth.MakeNonce()
-	// if err != nil {
-	// 	http.Error(w, "Something happened", http.StatusInternalServerError)
-	// }
+	if config.RegistrationType == "manual" {
+		templates.NotFoundPage("Users are not freely able to signup in the service. Contact the administrator").Render(r.Context(), w)
+		return
+	}
 
-	templates.Login("test").Render(r.Context(), w)
+	templates.Login("test", config.RegistrationType != "manual" ).Render(r.Context(), w)
 }
 
 func (l *login) checkLoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -155,6 +158,18 @@ func (s *signupHandler) generateChallenge() (string, error) {
 
 // displaySignupForm renders the signup form with a server-generated challenge
 func (s *signupHandler) displaySignupForm(w http.ResponseWriter, r *http.Request) {
+	config, err := s.storage.GetConfiguration(r.Context())
+	if err != nil {
+		slog.Error("Failed to generate challenge", slog.String("error", err.Error()))
+		http.Error(w, "Error generating challenge", http.StatusInternalServerError)
+		return
+	}
+
+	if config.RegistrationType == "manual" {
+		templates.NotFoundPage("Users are not freely able to signup in the service. Contact the administrator").Render(r.Context(), w)
+		return
+	}
+
 	// Generate a new challenge for this form
 	challenge, err := s.generateChallenge()
 	if err != nil {
@@ -176,6 +191,23 @@ func (s *signupHandler) displaySignupForm(w http.ResponseWriter, r *http.Request
 
 // processSignup handles the signup form submission and creates a new user
 func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
+	config, err := s.storage.GetConfiguration(r.Context())
+	if err != nil {
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "There was a problem during signup",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	if config.RegistrationType == "manual" {
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Public sign up is currently disabled",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
 	// Read the JSON body containing the signed Nostr event
 	body, err := io.ReadAll(r.Body)
 	if err != nil {

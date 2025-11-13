@@ -58,6 +58,4 @@ ehthumbs.db
 # Generated templ files
 *_templ.go
 
-AGENTS.md
-
 nostr-oicd

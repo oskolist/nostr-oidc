@@ -55,6 +55,7 @@ func LogRequestURL(next http.Handler) http.Handler {
 
 // Use one of the pre-made clients in storage/clients.go or register a new one.
 func SetupServer(server *Server, extraOptions ...op.Option) chi.Router {
+
 	// the OpenID Provider requires a 32-byte key for (token) encryption
 	// be sure to create a proper crypto random key and manage it securely!
 	key := sha256.Sum256([]byte("test"))

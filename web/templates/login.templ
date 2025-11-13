@@ -1,6 +1,6 @@
 package templates
 
-templ Login(nonce string) {
+templ Login(nonce string, openSignup bool) {
 	@Layout("Login") {
 		<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
 			<div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-md p-8">
@@ -14,9 +14,17 @@ templ Login(nonce string) {
 							type="submit"
 							class="inline-flex items-center justify-center w-full rounded-md
 						bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white px-4 py-2 font-medium"
-						>Connect with Nostr</button>
+						>
+							Connect with
+							Nostr
+						</button>
 					</div>
 				</form>
+				if openSignup {
+					<div class="text-center mb-6">
+						<p class="text-sm text-gray-500 dark:text-gray-400">Signup to the auth service</p>
+					</div>
+				}
 			</div>
 		</div>
 	}
