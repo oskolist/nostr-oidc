@@ -87,11 +87,17 @@ export function initSignup() {
         body: JSON.stringify(signedEvent),
       }));
 
-      console.log({res})
+      console.log({ res })
       const text = await res.text();
 
       if (res.ok) {
         // Success - swap the entire body with success page
+        const targetHeader = res.headers.get("HX-RETARGET");
+        if (targetHeader) {
+          window.htmx.swap(`${targetHeader}`, text, { swapStyle: "innerHTML" });
+          return
+        }
+
         window.htmx.swap('#body-children', text, { swapStyle: 'innerHTML' });
         showNotification('Account created successfully!', 'success');
       } else {

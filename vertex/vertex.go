@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -60,9 +59,7 @@ type VertexResult struct {
 	Rank float64 `json:"rank"`
 }
 
-func (v *VertexChecker) NpubHasEnoughReputation(npub *btcec.PublicKey) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+func (v *VertexChecker) NpubHasEnoughReputation(ctx context.Context, npub *btcec.PublicKey) (bool, error) {
 	if !v.relay.IsConnected() {
 		err := v.relay.Connect(context.Background())
 		if err != nil {

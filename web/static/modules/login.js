@@ -1,5 +1,7 @@
 // modules/login.js
 
+import htmx from "htmx.org";
+
 export async function signNostrEvent(event) {
   if (!window.nostr) {
     throw Error("window nostr is not set. You need a NIP-07 extension");
@@ -30,8 +32,13 @@ export function initLogin() {
       }));
 
       if (res.ok) {
-          const text = await res.text();
-          window.htmx.swap(`#body-children`, text, { swapStyle: "innerHTML" });
+        const targetHeader = res.headers.get("HX-RETARGET");
+        if (targetHeader) {
+          window.htmx.swap(`${targetHeader}`, text, { swapStyle: "innerHTML" });
+          return
+        }
+        const text = await res.text();
+        window.htmx.swap(`#body-children`, text, { swapStyle: "innerHTML" });
       } else {
         const targetHeader = res.headers.get("HX-RETARGET");
         if (window.htmx && targetHeader) {

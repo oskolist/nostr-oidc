@@ -294,7 +294,7 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valid, err := s.vertex.NpubHasEnoughReputation(pubkey)
+	valid, err := s.vertex.NpubHasEnoughReputation(r.Context(), pubkey)
 	if err != nil {
 		if errors.Is(err, vertex.RelayError) {
 			slog.Error("There was a problem with vertex", slog.String("type", "vertex"), slog.Any("error", err))

@@ -25,11 +25,21 @@ Retrieved 2025-11-11, License - CC BY-SA 4.0
 }
 
 #snackbar.error {
-    background-color: #ff6666;
+  background-color: #EF9A9A; /* Soft Red */
+  color: #000000; /* Black */
+  border: 1px solid #E57373; /* Muted Red */
 }
 
 #snackbar.success {
-    background-color: #90ef6e;
+  background-color: #388E3C; /* Dark Green */
+  color: #FFFFFF; /* White */
+  border: 1px solid #66BB6A; /* Lighter Green */
+}
+
+#snackbar.warning {
+  background-color: #FF8F00; /* Deep Amber */
+  color: #FFFFFF; /* White */
+  border: 1px solid #FFC107; /* Amber */
 }
 
 @keyframes slideInOut {

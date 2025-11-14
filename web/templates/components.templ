@@ -55,7 +55,7 @@ templ SelectInput(name, label string, options []SelectOption, value *string, req
 				<option
 					value={ opt.Value }
 					if value !=nil {
-						selected={ opt.Value == *value }
+						selected?={  opt.Value == *value  }
 					}
 				>
 					{ opt.Label }
