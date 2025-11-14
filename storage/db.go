@@ -17,6 +17,7 @@ var validate *validator.Validate
 func init() {
 	validate = validator.New(validator.WithRequiredStructEnabled())
 }
+
 type storageDB struct {
 	db *sql.DB
 }
@@ -1133,5 +1134,3 @@ func (s *storageDB) GetConfigWithNsec(tx *sql.Tx) (*Configuration, error) {
 
 	return &config, nil
 }
-
-

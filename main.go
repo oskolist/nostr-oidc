@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,11 +12,17 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/google/uuid"
 	"github.com/lescuer97/nostr-oicd/storage"
 	"github.com/lescuer97/nostr-oicd/storage/database"
 	"github.com/lescuer97/nostr-oicd/vertex"
 	"github.com/lescuer97/nostr-oicd/web"
+	"github.com/nbd-wtf/go-nostr/nip19"
+	"golang.org/x/text/language"
 )
+
+const ADMIN_USER_NSEC = "ADMIN_USER_NSEC"
 
 func main() {
 	// Load config from environment
@@ -38,6 +47,10 @@ func main() {
 
 	// Ensure a default configuration exists
 	if err := ensureConfiguration(context.Background(), &storage); err != nil {
+		log.Fatalf("failed to ensure default configuration: %v", err)
+	}
+
+	if err := ensureAdminEnvNpubIsRegistedAsAdmin(os.Getenv(ADMIN_USER_NSEC), &storage); err != nil {
 		log.Fatalf("failed to ensure default configuration: %v", err)
 	}
 
@@ -124,4 +137,46 @@ func ensureConfiguration(ctx context.Context, store *storage.Storage) error {
 
 	log.Println("Default configuration created successfully")
 	return nil
+}
+
+// ensures that the nsec for admin in the env variable is registered as an admin user
+func ensureAdminEnvNpubIsRegistedAsAdmin(env string, store *storage.Storage) error {
+	if len(env) == 0 {
+		return nil
+	}
+
+	prefix, value, err := nip19.Decode(env)
+	if err != nil {
+		return fmt.Errorf("nip19.Decode(nsec). %w", err)
+	}
+
+	if prefix != "nsec" {
+		return fmt.Errorf("nsec is no correct")
+	}
+
+	hexPrivKey := value.(string)
+	pkBytes, err := hex.DecodeString(hexPrivKey)
+	if err != nil {
+		return fmt.Errorf("hex.DecodeString(hexPrivKey). %w", err)
+	}
+
+	_, pubkey := btcec.PrivKeyFromBytes(pkBytes)
+
+	err = store.CheckUserNpub(pubkey)
+	if errors.Is(err, sql.ErrNoRows) {
+		userID := uuid.New().String()
+		newUser := storage.User{
+			ID:                userID,
+			Npub:              pubkey,
+			PreferredLanguage: language.English,
+			IsAdmin:           true,
+			Active:            true,
+		}
+		err = store.AddUser(context.Background(), newUser)
+		if err != nil {
+			return fmt.Errorf("store.AddUser(context.Background(), newUser). %w", err)
+		}
+	}
+
+	return err
 }

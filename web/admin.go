@@ -427,7 +427,6 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-
 	emptyNsecField := inputConfig.Nsec == nil || len(*inputConfig.Nsec) == 0
 	if !emptyNsecField {
 		vtx, err := vertex.NewVertexChecker(*inputConfig.Nsec)

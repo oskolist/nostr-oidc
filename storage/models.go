@@ -313,9 +313,9 @@ type deviceAuthorizationEntry struct {
 
 // Configuration represents the application's global settings
 type Configuration struct {
-	MaxClients       uint64  `form:"max_clients" validate:"gte=0"`
-	MaxUsers         uint64  `form:"max_users" validate:"gte=0"`
-	LastUpdated      uint64  `validate:"gte=0"`
+	MaxClients  uint64 `form:"max_clients" validate:"gte=0"`
+	MaxUsers    uint64 `form:"max_users" validate:"gte=0"`
+	LastUpdated uint64 `validate:"gte=0"`
 	// TODO: make paid version
 	RegistrationType string  `form:"registration_type" validate:"oneof=open manual"`
 	Nsec             *string `form:"nsec"`
