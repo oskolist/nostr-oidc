@@ -20,6 +20,9 @@ const (
 
 	// CustomScopeImpersonatePrefix is an example scope prefix for passing user id to impersonate using token exchange
 	CustomScopeImpersonatePrefix = "custom_scope:impersonate:"
+
+
+	OICD_ADMIN_DASHBOARD_CLIENT_ID = "oicd_admin_dashboard"
 )
 
 type AuthRequest struct {

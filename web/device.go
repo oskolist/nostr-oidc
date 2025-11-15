@@ -76,7 +76,7 @@ func (d *deviceLogin) userCodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	templates.Login(userCode, config.RegistrationType != "manual").Render(r.Context(), w)
+	templates.Login(userCode, templates.DeviceLogin, config.RegistrationType != "manual").Render(r.Context(), w)
 }
 
 func redirectBack(w http.ResponseWriter, r *http.Request, prompt string) {

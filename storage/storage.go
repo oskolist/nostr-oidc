@@ -1264,26 +1264,26 @@ func (s *Storage) GetAllUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
-func (s *Storage) CheckUserNpub(publicKey *btcec.PublicKey) error {
+func (s *Storage) CheckUserNpub(publicKey *btcec.PublicKey) (*User, error) {
 
 	tx, err := s.db.BeginTx(context.Background(), nil)
 	if err != nil {
-		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
 
-	_, err = s.db.SearchUserByNpub(tx, publicKey)
+	user, err := s.db.SearchUserByNpub(tx, publicKey)
 	if err != nil {
-		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
+		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("tx.Commit(). %w", err)
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
-	return nil
-	// return nil
+	return user, nil
 }
+
 func (s *Storage) GetUserById(ctx context.Context, id string) (*User, error) {
 
 	tx, err := s.db.BeginTx(ctx, nil)

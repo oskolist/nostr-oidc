@@ -28,8 +28,9 @@ type Storage interface {
 }
 
 type Server struct {
-	Storage Storage
-	Vertex  *vertex.VertexChecker
+	Storage      Storage
+	Vertex       *vertex.VertexChecker
+	OIDCProvider op.OpenIDProvider
 }
 
 // simple counter for request IDs
@@ -95,6 +96,9 @@ func SetupServer(server *Server, extraOptions ...op.Option) chi.Router {
 		log.Fatal(err)
 	}
 
+	// Store the provider in the server for access in handlers
+	server.OIDCProvider = provider
+
 	//the provider will only take care of the OpenID Protocol, so there must be some sort of UI for the login process
 	//for the simplicity of the example this means a simple page with username and password field
 	//be sure to provide an IssuerInterceptor with the IssuerFromRequest from the OP so the login can select / and pass it to the storage
@@ -104,7 +108,7 @@ func SetupServer(server *Server, extraOptions ...op.Option) chi.Router {
 
 	// regardless of how many pages / steps there are in the process, the UI must be registered in the router,
 	// so we will direct all calls to /login to the login UI
-	router.Mount("/login/", http.StripPrefix("/login", l.router))
+	router.Mount("/login", http.StripPrefix("/login", l.router))
 
 	// Mount signup routes
 	signupRouter := NewSignupHandler(server.Storage, server.Vertex)
@@ -117,6 +121,10 @@ func SetupServer(server *Server, extraOptions ...op.Option) chi.Router {
 	router.Route("/device", func(r chi.Router) {
 		registerDeviceAuth(server.Storage, r)
 	})
+
+	// router.Route("/device", func(r chi.Router) {
+	// 	registerDeviceAuth(server.Storage, r)
+	// })
 
 	handler := http.Handler(provider)
 

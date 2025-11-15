@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,6 +20,8 @@ import (
 	"github.com/lescuer97/nostr-oicd/vertex"
 	"github.com/lescuer97/nostr-oicd/web"
 	"github.com/nbd-wtf/go-nostr/nip19"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
+	"github.com/zitadel/oidc/v3/pkg/op"
 	"golang.org/x/text/language"
 )
 
@@ -52,6 +55,10 @@ func main() {
 
 	if err := ensureAdminEnvNpubIsRegistedAsAdmin(os.Getenv(ADMIN_USER_NSEC), &storage); err != nil {
 		log.Fatalf("failed to ensure default configuration: %v", err)
+	}
+
+	if err := ensureOICDAdminDashboardClientIdExists(&storage); err != nil {
+		log.Fatalf("could no generate oicd client for dashboard: %v", err)
 	}
 
 	config, err := storage.GetConfigurationWithNsec(context.Background())
@@ -162,7 +169,7 @@ func ensureAdminEnvNpubIsRegistedAsAdmin(env string, store *storage.Storage) err
 
 	_, pubkey := btcec.PrivKeyFromBytes(pkBytes)
 
-	err = store.CheckUserNpub(pubkey)
+	_, err = store.CheckUserNpub(pubkey)
 	if errors.Is(err, sql.ErrNoRows) {
 		userID := uuid.New().String()
 		newUser := storage.User{
@@ -179,4 +186,26 @@ func ensureAdminEnvNpubIsRegistedAsAdmin(env string, store *storage.Storage) err
 	}
 
 	return err
+}
+
+func ensureOICDAdminDashboardClientIdExists(store *storage.Storage) error {
+
+	_, err := store.GetClientByClientID(context.Background(), storage.OICD_ADMIN_DASHBOARD_CLIENT_ID)
+	if errors.Is(err, sql.ErrNoRows) {
+		client := storage.NewClient(storage.OICD_ADMIN_DASHBOARD_CLIENT_ID, "", []string{"http://localhost:8082/admin/oidc/callback"}, op.ApplicationTypeNative,
+			oidc.AuthMethodNone,
+			[]oidc.ResponseType{oidc.ResponseTypeCode},
+			[]oidc.GrantType{oidc.GrantTypeCode},
+			op.AccessTokenTypeBearer, []string{}, []string{},
+		)
+
+		err = store.AddClient(context.Background(), *client)
+		if err != nil {
+			slog.Error("s.storage.AddClient", slog.String("error", err.Error()))
+			return fmt.Errorf("store.AddClient(context.Background(), *client). %w", err)
+		}
+	}
+
+	return err
+
 }

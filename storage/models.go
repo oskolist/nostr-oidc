@@ -59,7 +59,9 @@ func (c *Client) GrantTypes() []oidc.GrantType {
 }
 
 func (c *Client) LoginURL(id string) string {
-	return c.loginURL(id)
+	fmt.Printf("\n id: %+v\n ", id)
+	fmt.Printf("\n client: %+v\n ", *c)
+	return "/login?authRequestID=" + id
 }
 
 func (c *Client) AccessTokenType() op.AccessTokenType {

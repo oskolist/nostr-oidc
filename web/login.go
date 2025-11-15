@@ -33,12 +33,12 @@ const (
 )
 
 type login struct {
-	authenticate authenticate
+	authenticate Storage
 	router       chi.Router
 	callback     func(context.Context, string) string
 }
 
-func NewLogin(authenticate authenticate, callback func(context.Context, string) string, issuerInterceptor *op.IssuerInterceptor) *login {
+func NewLogin(authenticate Storage, callback func(context.Context, string) string, issuerInterceptor *op.IssuerInterceptor) *login {
 	l := &login{
 		authenticate: authenticate,
 		callback:     callback,
@@ -48,12 +48,12 @@ func NewLogin(authenticate authenticate, callback func(context.Context, string) 
 }
 func (l *login) createRouter(issuerInterceptor *op.IssuerInterceptor) {
 	l.router = chi.NewRouter()
-	l.router.Get("/username", l.loginHandler)
-	l.router.Post("/username", issuerInterceptor.HandlerFunc(l.checkLoginHandler))
+	l.router.Get("/", l.loginHandler)
+	l.router.Post("/", issuerInterceptor.HandlerFunc(l.checkLoginHandler))
 }
 
 type authenticate interface {
-	CheckUserNpub(publicKey *btcec.PublicKey) error
+	CheckUserNpub(publicKey *btcec.PublicKey) (*storage.User, error)
 	CheckNostrEventSignature(event nostr.Event) error
 	AddUser(ctx context.Context, user storage.User) error
 	GetAllClients(ctx context.Context) ([]storage.Client, error)
@@ -76,7 +76,11 @@ func (l *login) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	templates.Login("test", config.RegistrationType != "manual").Render(r.Context(), w)
+	id := r.URL.Query().Get("authRequestID")
+
+	fmt.Printf("\n id: %+v\n ", id)
+
+	templates.Login(id, templates.CodeLogin, config.RegistrationType != "manual").Render(r.Context(), w)
 }
 
 func (l *login) checkLoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -110,18 +114,44 @@ func (l *login) checkLoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.FormValue("id")
-	err = l.authenticate.CheckUserNpub(pubkey)
+	user, err := l.authenticate.CheckUserNpub(pubkey)
 	if err != nil {
-		// renderLogin(w, id, err)
+		slog.Error("l.authenticate.CheckUserNpub(pubkey)", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not verify your user",
+			Type: notificationTypeError,
+		}, r, w)
 		return
 	}
-	http.Redirect(w, r, l.callback(r.Context(), id), http.StatusFound)
+
+	fmt.Printf("\n authId: %+v", nostrEvent.Content)
+	// check if the user exists and if you are logging in to the correct client
+	authRequest, err := l.authenticate.AuthRequestByID(r.Context(), nostrEvent.Content)
+	if err != nil {
+		slog.Error("l.authenticate.AuthRequestByID(r.Context(), nostrEvent.Content)", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not validate loggin",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	if authRequest.GetClientID() == storage.OICD_ADMIN_DASHBOARD_CLIENT_ID {
+		if !user.IsAdmin {
+			writeHtmlNotification(templates.NotifInfo{
+				Msg:  "You are not an administrator",
+				Type: notificationTypeError,
+			}, r, w)
+			return
+		}
+	}
+
+	http.Redirect(w, r, l.callback(r.Context(), nostrEvent.Content), http.StatusFound)
 }
 
 // signupHandler handles user registration with Nostr signature verification
 type signupHandler struct {
-	storage          authenticate
+	storage          Storage
 	vertex           *vertex.VertexChecker
 	mu               sync.Mutex
 	activeChallenges map[string]string // maps challenge to IP for one-time use
@@ -138,9 +168,9 @@ func writeHtmlNotification(info templates.NotifInfo, r *http.Request, w http.Res
 }
 
 // NewSignupHandler creates a new signup handler
-func NewSignupHandler(auth authenticate, vtx *vertex.VertexChecker) chi.Router {
+func NewSignupHandler(storage Storage, vtx *vertex.VertexChecker) chi.Router {
 	s := &signupHandler{
-		storage:          auth,
+		storage:          storage,
 		activeChallenges: make(map[string]string),
 		vertex:           vtx,
 	}
@@ -284,7 +314,7 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if user with this public key already exists
-	err = s.storage.CheckUserNpub(pubkey)
+	_, err = s.storage.CheckUserNpub(pubkey)
 	if err == nil {
 		// User already exists
 		writeHtmlNotification(templates.NotifInfo{

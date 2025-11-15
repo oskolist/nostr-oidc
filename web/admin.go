@@ -65,11 +65,31 @@ func NewAdminHandler(server *Server) chi.Router {
 	router.Get("/clients", s.clientsList)
 	router.Get("/users", s.usersList)
 
+	router.Get("/login", s.login)
+
+	router.Get("/oidc/callback", s.oidcCallback)
+
 	return router
 }
 
 type adminHandler struct {
 	server *Server
+}
+
+func (s *adminHandler) login(w http.ResponseWriter, r *http.Request) {
+	client, err := s.server.Storage.GetClientByClientID(r.Context(), storage.OICD_ADMIN_DASHBOARD_CLIENT_ID)
+	if err != nil {
+		slog.Error("Failed to retrieve admin client configuration", slog.String("error", err.Error()))
+		http.Error(w, "Admin client not configured", http.StatusInternalServerError)
+		return
+	}
+
+	templates.Pkce(client.GetID(), client.RedirectURIs()[0], "openid").Render(r.Context(), w)
+}
+
+func (s *adminHandler) oidcCallback(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("\n \n inside the oidc callback \n \n")
+	// Implementation will go here
 }
 
 func (s *adminHandler) clientEditFormById(w http.ResponseWriter, r *http.Request) {

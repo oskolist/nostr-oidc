@@ -16,6 +16,7 @@ export function initLogin() {
   loginContainer.addEventListener("submit", async (e) => {
     e.preventDefault();
 
+    console.log("nonce: ", loginContainer?.nonce)
     const eventToSign = {
       created_at: Math.floor(Date.now() / 1000),
       kind: 27235,
@@ -25,7 +26,12 @@ export function initLogin() {
 
     try {
       const signedEvent = await signNostrEvent(eventToSign);
-      let loginUrl = "/device/login"
+      let loginUrl = "/login"
+
+      if (loginContainer.dataset.loginType) {
+        loginUrl = "/device/login"
+
+      }
       const res = await fetch(new Request(loginUrl, {
         method: "POST",
         body: JSON.stringify(signedEvent),
