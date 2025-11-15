@@ -21,7 +21,6 @@ const (
 	// CustomScopeImpersonatePrefix is an example scope prefix for passing user id to impersonate using token exchange
 	CustomScopeImpersonatePrefix = "custom_scope:impersonate:"
 
-
 	OICD_ADMIN_DASHBOARD_CLIENT_ID = "oicd_admin_dashboard"
 )
 
@@ -41,9 +40,8 @@ type AuthRequest struct {
 	ResponseMode  oidc.ResponseMode
 	Nonce         string
 	CodeChallenge *OIDCCodeChallenge
-
-	done     bool
-	authTime time.Time
+	done          bool
+	authTime      time.Time
 }
 
 // LogValue allows you to define which fields will be logged.

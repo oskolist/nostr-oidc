@@ -30,12 +30,16 @@ export function initLogin() {
 
       if (loginContainer.dataset.loginType) {
         loginUrl = "/device/login"
-
       }
       const res = await fetch(new Request(loginUrl, {
         method: "POST",
         body: JSON.stringify(signedEvent),
       }));
+
+      if (res.redirected) {
+        window.location.href = res.url;
+        return
+      }
 
       if (res.ok) {
         const targetHeader = res.headers.get("HX-RETARGET");

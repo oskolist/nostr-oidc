@@ -54,7 +54,7 @@ func main() {
 	}
 
 	if err := ensureAdminEnvNpubIsRegistedAsAdmin(os.Getenv(ADMIN_USER_NSEC), &storage); err != nil {
-		log.Fatalf("failed to ensure default configuration: %v", err)
+		log.Fatalf("failed to register nsec admin user: %v", err)
 	}
 
 	if err := ensureOICDAdminDashboardClientIdExists(&storage); err != nil {
@@ -137,13 +137,14 @@ func ensureConfiguration(ctx context.Context, store *storage.Storage) error {
 		LastUpdated:      uint64(time.Now().Unix()),
 	}
 
-	log.Println("Creating default configuration...")
-	if err := store.UpdateConfiguration(ctx, defaultConfig); err != nil {
-		return fmt.Errorf("failed to create default configuration: %w", err)
+	if errors.Is(err, sql.ErrNoRows) {
+		if err = store.AddConfiguration(ctx, defaultConfig); err != nil {
+			return fmt.Errorf("failed to create default configuration: %w", err)
+		}
+		return err
 	}
 
-	log.Println("Default configuration created successfully")
-	return nil
+	return err
 }
 
 // ensures that the nsec for admin in the env variable is registered as an admin user

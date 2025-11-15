@@ -105,6 +105,9 @@ templ Pkce(clientID string, redirectURI string, scope string) {
 						}
 						localStorage.setItem('pkce_code_challenge', code_challenge);
 
+						localStorage.setItem('pkce_client_id', config.clientID);
+						localStorage.setItem('pkce_redirect_uri', config.redirectURI);
+
 						var authorizeURL = new URL(window.location.origin + '/authorize');
 						authorizeURL.searchParams.append('response_type', 'code');
 						authorizeURL.searchParams.append('client_id', config.clientID);

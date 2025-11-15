@@ -80,6 +80,44 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, authReq *oidc.AuthReque
 	return request, nil
 }
 
+func (s *Storage) AddUserIDToAuthRequest(ctx context.Context, id string, userID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	err = s.db.AddUserIDToAuthRequest(tx, id, userID)
+	if err != nil {
+		return fmt.Errorf("s.db.AddUserIDToAuthRequest(tx, id, userID). %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return nil
+}
+
+func (s *Storage) SetAuthRequestDone(ctx context.Context, id string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	err = s.db.SetAuthRequestDone(tx, id)
+	if err != nil {
+		return fmt.Errorf("s.db.SetAuthRequestDone(tx, id). %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return nil
+}
+
 // AuthRequestByID implements the op.Storage interface
 // it will be called after the Login UI redirects back to the OIDC endpoint
 func (s *Storage) AuthRequestByID(ctx context.Context, id string) (op.AuthRequest, error) {
@@ -91,7 +129,7 @@ func (s *Storage) AuthRequestByID(ctx context.Context, id string) (op.AuthReques
 
 	authReq, err := s.db.SearchAuthRequestByID(tx, id)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
+		return nil, fmt.Errorf("s.db.SearchAuthRequestByID(tx, id). %w", err)
 	}
 
 	err = tx.Commit()
@@ -110,9 +148,9 @@ func (s *Storage) AuthRequestByCode(ctx context.Context, code string) (op.AuthRe
 	}
 	defer tx.Rollback()
 
-	authReq, err := s.db.SearchAuthRequestByID(tx, code)
+	authReq, err := s.db.SearchAuthRequestByCode(tx, code)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
+		return nil, fmt.Errorf("s.db.SearchAuthRequestByCode(tx, code). %w", err)
 	}
 
 	err = tx.Commit()
@@ -591,7 +629,7 @@ func (s *Storage) AuthorizeClientIDSecret(ctx context.Context, clientID, clientS
 
 	_, err = s.db.SearchClientByID(tx, clientID)
 	if err != nil {
-		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
+		return fmt.Errorf("s.db.SearchClientByID(tx, clientID). %w", err)
 	}
 
 	err = tx.Commit()
@@ -1274,7 +1312,7 @@ func (s *Storage) CheckUserNpub(publicKey *btcec.PublicKey) (*User, error) {
 
 	user, err := s.db.SearchUserByNpub(tx, publicKey)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
+		return nil, fmt.Errorf("s.db.SearchUserByNpub(tx, publicKey). %w", err)
 	}
 
 	err = tx.Commit()
@@ -1294,7 +1332,7 @@ func (s *Storage) GetUserById(ctx context.Context, id string) (*User, error) {
 
 	user, err := s.db.SearchUserByID(tx, id)
 	if err != nil {
-		return nil, fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
+		return nil, fmt.Errorf("s.db.SearchUserByID(tx, id). %w", err)
 	}
 
 	err = tx.Commit()
@@ -1382,6 +1420,34 @@ func (s *Storage) NsecIsRegistered(ctx context.Context) (bool, error) {
 
 }
 
+func (s *Storage) AddConfiguration(ctx context.Context, config *Configuration) error {
+	if config == nil {
+		return fmt.Errorf("configuration cannot be nil")
+	}
+
+	// Validate the configuration before updating
+	if err := validateConfiguration(config); err != nil {
+		return fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	err = s.db.SaveConfig(tx, config)
+	if err != nil {
+		return fmt.Errorf("s.db.SaveConfig(tx, config). %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return nil
+}
+
 // UpdateConfiguration updates the application configuration in the database
 func (s *Storage) UpdateConfiguration(ctx context.Context, config *Configuration) error {
 	if config == nil {
@@ -1401,7 +1467,7 @@ func (s *Storage) UpdateConfiguration(ctx context.Context, config *Configuration
 
 	configWithNsec, err := s.db.GetConfigWithNsec(tx)
 	if err != nil {
-		return fmt.Errorf("s.db.SaveConfig(tx, config). %w", err)
+		return fmt.Errorf("s.db.GetConfigWithNsec(tx). %w", err)
 	}
 
 	if config.Nsec == nil || len(*config.Nsec) == 0 {
@@ -1443,7 +1509,7 @@ func (s *Storage) AddUser(ctx context.Context, user User) error {
 
 	err = s.db.AddUser(tx, &user)
 	if err != nil {
-		return fmt.Errorf("s.db.AddAuthRequest(tx, request). %w", err)
+		return fmt.Errorf("ss.db.AddUser(tx, &user). %w", err)
 	}
 
 	err = tx.Commit()

@@ -8,6 +8,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -88,8 +89,15 @@ func (s *adminHandler) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *adminHandler) oidcCallback(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("\n \n inside the oidc callback \n \n")
-	// Implementation will go here
+	log.Printf("\n \n request Headers: %+v \n ", r.URL.Query())
+	// Construct the token endpoint URL
+	tokenEndpoint := &url.URL{
+		Scheme: r.URL.Scheme,
+		Host:   r.Host,
+		Path:   "/oauth/token", // Assuming your token endpoint is at /token
+	}
+
+	templates.AdminPKCECallback(tokenEndpoint).Render(r.Context(), w)
 }
 
 func (s *adminHandler) clientEditFormById(w http.ResponseWriter, r *http.Request) {

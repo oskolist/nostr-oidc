@@ -59,6 +59,9 @@ type authenticate interface {
 	GetAllClients(ctx context.Context) ([]storage.Client, error)
 	GetAllUsers(ctx context.Context) ([]storage.User, error)
 
+	AddUserIDToAuthRequest(ctx context.Context, id string, userID string) error
+	SetAuthRequestDone(ctx context.Context, id string) error
+
 	// gets the config
 	GetConfiguration(ctx context.Context) (*storage.Configuration, error)
 }
@@ -71,10 +74,10 @@ func (l *login) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if config.RegistrationType == "manual" {
-		templates.NotFoundPage("Users are not freely able to signup in the service. Contact the administrator").Render(r.Context(), w)
-		return
-	}
+	// if config.RegistrationType == "manual" {
+	// 	templates.NotFoundPage("Users are not freely able to signup in the service. Contact the administrator").Render(r.Context(), w)
+	// 	return
+	// }
 
 	id := r.URL.Query().Get("authRequestID")
 
@@ -144,6 +147,26 @@ func (l *login) checkLoginHandler(w http.ResponseWriter, r *http.Request) {
 			}, r, w)
 			return
 		}
+	}
+
+	err = l.authenticate.AddUserIDToAuthRequest(r.Context(), authRequest.GetID(), user.ID)
+	if err != nil {
+		slog.Error("l.authenticate.AddUserIDToAuthRequest(r.Context(), user.ID)", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not validate loggin",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	err = l.authenticate.SetAuthRequestDone(r.Context(), authRequest.GetID())
+	if err != nil {
+		slog.Error("l.authenticate.SetAuthRequestDone(r.Context(), authRequest.GetID())", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not validate loggin",
+			Type: notificationTypeError,
+		}, r, w)
+		return
 	}
 
 	http.Redirect(w, r, l.callback(r.Context(), nostrEvent.Content), http.StatusFound)
