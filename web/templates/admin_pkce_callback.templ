@@ -35,7 +35,7 @@ templ AdminPKCECallback(tokenEndpoint *url.URL) {
 					</p>
 				</div>
 				@templ.JSONScript(("token-config"), map[string]string{"tokenEndpoint": tokenEndpoint.String()})
-				<script src="/static/modules/pkce_callback.js" async defer></script>
+				<script src="/static/dist/modules/pkce_callback.js" async defer></script>
 			</div>
 		</div>
 	}

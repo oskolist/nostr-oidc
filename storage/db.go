@@ -70,8 +70,8 @@ func (s *storageDB) AddAuthRequest(tx *sql.Tx, authReq *AuthRequest) error {
 		INSERT INTO auth_requests (
 			id, creation_date, application_id, callback_uri, transfer_state, prompt,
 			ui_locales, login_hint, max_auth_age, user_id, scopes, response_type,
-			response_mode, nonce, code_challenge_challenge, code_challenge_method, done
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+			response_mode, nonce, code_challenge, code_challenge_method, code, done
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -82,7 +82,7 @@ func (s *storageDB) AddAuthRequest(tx *sql.Tx, authReq *AuthRequest) error {
 	_, err = stmt.Exec(
 		authReq.ID, authReq.CreationDate, authReq.ApplicationID, authReq.CallbackURI, authReq.TransferState, string(promptJSON),
 		string(uiLocalesJSON), authReq.LoginHint, maxAuthAgeNanos, authReq.UserID, string(scopesJSON), string(authReq.ResponseType),
-		string(authReq.ResponseMode), authReq.Nonce, challenge, method, authReq.Done(),
+		string(authReq.ResponseMode), authReq.Nonce, challenge, method, authReq.Code, authReq.Done(),
 	)
 	if err != nil {
 		return fmt.Errorf("stmt.Exec(AddAuthRequest): %w", err)
@@ -98,8 +98,8 @@ func (s *storageDB) SearchAuthRequestByID(tx *sql.Tx, id string) (*AuthRequest, 
 
 	query := `
 		SELECT id, creation_date, application_id, callback_uri, transfer_state, prompt,
-			   ui_locales, login_hint, max_auth_age, user_id, scopes, response_type,
-			   response_mode, nonce, code_challenge_challenge, code_challenge_method, done
+			ui_locales, login_hint, max_auth_age, user_id, scopes, response_type,
+			response_mode, nonce, code_challenge, code_challenge_method, code, done
 		FROM auth_requests WHERE id = ?`
 
 	stmt, err := tx.Prepare(query)
@@ -110,14 +110,14 @@ func (s *storageDB) SearchAuthRequestByID(tx *sql.Tx, id string) (*AuthRequest, 
 
 	var authReq AuthRequest
 	var maxAuthAgeNanos sql.NullInt64
-	var challenge, method sql.NullString
+	var challenge, method, code sql.NullString
 	var promptJSON, uiLocalesJSON, scopesJSON []byte
 	var done bool
 
 	err = stmt.QueryRow(id).Scan(
 		&authReq.ID, &authReq.CreationDate, &authReq.ApplicationID, &authReq.CallbackURI, &authReq.TransferState, &promptJSON,
 		&uiLocalesJSON, &authReq.LoginHint, &maxAuthAgeNanos, &authReq.UserID, &scopesJSON,
-		(*string)(&authReq.ResponseType), (*string)(&authReq.ResponseMode), &authReq.Nonce, &challenge, &method, &done,
+		(*string)(&authReq.ResponseType), (*string)(&authReq.ResponseMode), &authReq.Nonce, &challenge, &method, &code, &done,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchAuthRequestByID): %w", err)
@@ -194,17 +194,17 @@ func (s *storageDB) SetAuthRequestDone(tx *sql.Tx, id string) error {
 	return nil
 }
 
-// SearchAuthRequestByCode retrieves an auth request by code_challenge_challenge
-func (s *storageDB) SearchAuthRequestByCode(tx *sql.Tx, code string) (*AuthRequest, error) {
+// SearchAuthRequestByCode retrieves an auth request by code_challenge
+func (s *storageDB) SearchAuthRequestByCode(tx *sql.Tx, authCodeParam string) (*AuthRequest, error) {
 	if tx == nil {
 		panic("tx cannot be nil")
 	}
 
 	query := `
 		SELECT id, creation_date, application_id, callback_uri, transfer_state, prompt,
-			   ui_locales, login_hint, max_auth_age, user_id, scopes, response_type,
-			   response_mode, nonce, code_challenge_challenge, code_challenge_method, done
-		FROM auth_requests WHERE code_challenge_challenge = ?`
+			ui_locales, login_hint, max_auth_age, user_id, scopes, response_type,
+			response_mode, nonce, code_challenge, code_challenge_method, code, done
+		FROM auth_requests WHERE code = ?`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -214,14 +214,14 @@ func (s *storageDB) SearchAuthRequestByCode(tx *sql.Tx, code string) (*AuthReque
 
 	var authReq AuthRequest
 	var maxAuthAgeNanos sql.NullInt64
-	var challenge, method sql.NullString
+	var challenge, method, code sql.NullString
 	var promptJSON, uiLocalesJSON, scopesJSON []byte
 	var done bool
 
-	err = stmt.QueryRow(code).Scan(
+	err = stmt.QueryRow(authCodeParam).Scan(
 		&authReq.ID, &authReq.CreationDate, &authReq.ApplicationID, &authReq.CallbackURI, &authReq.TransferState, &promptJSON,
 		&uiLocalesJSON, &authReq.LoginHint, &maxAuthAgeNanos, &authReq.UserID, &scopesJSON,
-		(*string)(&authReq.ResponseType), (*string)(&authReq.ResponseMode), &authReq.Nonce, &challenge, &method, &done,
+		(*string)(&authReq.ResponseType), (*string)(&authReq.ResponseMode), &authReq.Nonce, &challenge, &method, &code, &done,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("stmt.QueryRow.Scan(SearchAuthRequestByCode): %w", err)
@@ -767,7 +767,7 @@ func (s *storageDB) SaveAuthCode(tx *sql.Tx, id, code string) error {
 		panic("tx cannot be nil")
 	}
 
-	query := `UPDATE auth_requests SET code_challenge_challenge = ? WHERE id = ?`
+	query := `UPDATE auth_requests SET code = ? WHERE id = ?`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {

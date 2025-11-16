@@ -40,6 +40,7 @@ type AuthRequest struct {
 	ResponseMode  oidc.ResponseMode
 	Nonce         string
 	CodeChallenge *OIDCCodeChallenge
+	Code          *string
 	done          bool
 	authTime      time.Time
 }

@@ -31,8 +31,9 @@ CREATE TABLE auth_requests (
     response_type TEXT,
     response_mode TEXT,
     nonce TEXT,
-    code_challenge_challenge TEXT,
+    code_challenge TEXT,
     code_challenge_method TEXT,
+    code TEXT,
     done BOOLEAN DEFAULT 0
 );
 

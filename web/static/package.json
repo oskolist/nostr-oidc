@@ -5,8 +5,8 @@
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "build": "esbuild app.js --bundle --minify --outfile=dist/bundle.js",
-    "dev": "esbuild app.js --bundle --outfile=dist/bundle.js",
+    "build": "esbuild app.js ./modules/pkce_callback.js  --bundle --minify --outdir=dist/ --outfile=dist/bundle.js --outbase=.",
+    "dev": "esbuild app.js ./modules/pkce_callback.js   --bundle --outdir=dist/ --outbase=.",
     "build:tailwind": "tailwindcss -i ./input.css -o dist/tailwind.css --minify",
     "tailwind": "tailwindcss -i ./input.css -o dist/tailwind.css"
   },

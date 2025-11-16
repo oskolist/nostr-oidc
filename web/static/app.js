@@ -9,6 +9,7 @@ window.htmx = htmx;
 
 // Login functionality
 import { initLogin } from './modules/login.js';
+import './modules/admin.js';
 
 // Signup functionality
 import { initSignup } from './modules/signup.js';
