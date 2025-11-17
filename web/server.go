@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/lescuer97/nostr-oicd/vertex"
 	"github.com/zitadel/logging"
 	"golang.org/x/text/language"
@@ -71,6 +72,7 @@ func SetupServer(server *Server, extraOptions ...op.Option) chi.Router {
 			return slog.Int64("id", counter.Add(1))
 		}),
 	))
+	router.Use(middleware.Compress(5))
 	router.Handle("/static/*", http.StripPrefix("/static/", fileServer))
 
 	// for simplicity, we provide a very small default page for users who have signed out
