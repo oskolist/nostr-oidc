@@ -1264,6 +1264,7 @@ func (s *Storage) EditUser(ctx context.Context, user User) error {
 	return nil
 }
 
+// Gets all the clients exept the admin one
 func (s *Storage) GetAllClients(ctx context.Context) ([]Client, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1271,7 +1272,7 @@ func (s *Storage) GetAllClients(ctx context.Context) ([]Client, error) {
 	}
 	defer tx.Rollback()
 
-	clients, err := s.db.SearchAllClients(tx)
+	clients, err := s.db.SearchAllNonAdminClients(tx)
 	if err != nil {
 		return nil, fmt.Errorf("s.db.SearchAllClients(tx). %w", err)
 	}
@@ -1283,6 +1284,7 @@ func (s *Storage) GetAllClients(ctx context.Context) ([]Client, error) {
 	return clients, nil
 }
 
+// Gets all the clients execpt the admin users
 func (s *Storage) GetAllUsers(ctx context.Context) ([]User, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1290,7 +1292,7 @@ func (s *Storage) GetAllUsers(ctx context.Context) ([]User, error) {
 	}
 	defer tx.Rollback()
 
-	users, err := s.db.SearchAllUsers(tx)
+	users, err := s.db.SearchAllNonAdminUsers(tx)
 	if err != nil {
 		return nil, fmt.Errorf("s.db.SearchAllUsers(tx). %w", err)
 	}

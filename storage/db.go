@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -1042,6 +1043,47 @@ func (s *storageDB) SearchAllClients(tx *sql.Tx) ([]Client, error) {
 
 	rows, err := tx.Query(query)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []Client{}, nil
+		}
+		return nil, fmt.Errorf("tx.Query(SearchAllClients): %w", err)
+	}
+	defer rows.Close()
+
+	var clients []Client
+	for rows.Next() {
+		var client Client
+		err := client.ScanRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("client.ScanRow(SearchAllClients): %w", err)
+		}
+		clients = append(clients, client)
+	}
+
+	// Check for any error that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows.Err(SearchAllClients): %w", err)
+	}
+
+	return clients, nil
+}
+
+func (s *storageDB) SearchAllNonAdminClients(tx *sql.Tx) ([]Client, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := fmt.Sprintf(`
+		SELECT id, secret, redirect_uris, application_type, auth_method, response_types,
+			   grant_types, access_token_type, dev_mode, id_token_userinfo_claims_assertion,
+			   clock_skew, post_logout_redirect_uri_globs, redirect_uri_globs
+		FROM clients WHERE id != "%s"`, OICD_ADMIN_DASHBOARD_CLIENT_ID)
+
+	rows, err := tx.Query(query)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []Client{}, nil
+		}
 		return nil, fmt.Errorf("tx.Query(SearchAllClients): %w", err)
 	}
 	defer rows.Close()
@@ -1074,6 +1116,43 @@ func (s *storageDB) SearchAllUsers(tx *sql.Tx) ([]User, error) {
 
 	rows, err := tx.Query(query)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []User{}, nil
+		}
+		return nil, fmt.Errorf("tx.Query(SearchAllUsers): %w", err)
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		err := user.ScanRow(rows)
+		if err != nil {
+			return nil, fmt.Errorf("user.ScanRow(SearchAllUsers): %w", err)
+		}
+		users = append(users, user)
+	}
+
+	// Check for any error that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows.Err(SearchAllUsers): %w", err)
+	}
+
+	return users, nil
+}
+
+func (s *storageDB) SearchAllNonAdminUsers(tx *sql.Tx) ([]User, error) {
+	if tx == nil {
+		panic("tx cannot be nil")
+	}
+
+	query := `SELECT id, npub, preferred_language, is_admin, active FROM users WHERE is_admin != true`
+
+	rows, err := tx.Query(query)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []User{}, nil
+		}
 		return nil, fmt.Errorf("tx.Query(SearchAllUsers): %w", err)
 	}
 	defer rows.Close()
