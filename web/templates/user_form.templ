@@ -12,14 +12,15 @@ type UserFormData struct {
 }
 
 // UserFormPage renders the full page with the user form
-templ UserFormPage(user *UserFormData) {
-	@Layout("User Configuration") {
-		@UserForm(user)
-	}
-}
+templ UserFormPage(userId *string) {
+	@Layout("User Form") {
+		{{userFormUrl :=  "/admin/user_form"
+	
 
-// UserForm renders the main user configuration form
-templ UserForm(user *UserFormData) {
+if userId != nil {
+	userFormUrl += fmt.Sprintf("?id=%s", *userId)
+}
+		}}
 	<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4 sm:px-6 lg:px-8">
 		<div class="max-w-4xl mx-auto dark:text-white">
 			<!-- Header -->
@@ -27,6 +28,20 @@ templ UserForm(user *UserFormData) {
 				<h1 class="text-3xl font-bold text-gray-900 dark:text-white">User Configuration</h1>
 				<p class="mt-2 text-lg text-gray-600 dark:text-gray-300">Manage user accounts and settings</p>
 			</div>
+		<div hx-get={userFormUrl}
+		hx-trigger="load"
+		hx-swap="innerHTML"
+		hx-target=".form"
+		class="form"
+
+		></div>
+		</div>
+	</div>
+	}
+}
+
+// UserForm renders the main user configuration form
+templ UserForm(user *UserFormData) {
 			<!-- Form -->
 			<form
 				hx-post={ getUserFormEndpoint(user) }
@@ -77,12 +92,11 @@ templ UserForm(user *UserFormData) {
 					<div class="mb-6">
 						if user != nil {
 							@TextInput("npub", "Nostr Public Key (Npub)",
-								"npub1a1a2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e", &user.Npub, false,
+								"", &user.Npub, false,
 								"Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", true, nil)
 						} else {
-							emptyStringValue := ""
 							@TextInput("npub", "Nostr Public Key (Npub)",
-								"npub1a1a2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e", nil, false, "Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", false, nil)
+								"", nil, false, "Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", false, nil)
 						}
 					</div>
 				</div>
@@ -107,7 +121,6 @@ templ UserForm(user *UserFormData) {
 							<input
 								type="checkbox"
 								name="is_admin"
-								value="on"
 								if user != nil && user.IsAdmin {
 									checked
 								}
@@ -145,8 +158,6 @@ templ UserForm(user *UserFormData) {
 					</button>
 				</div>
 			</form>
-		</div>
-	</div>
 }
 
 // ========== Helper Types and Functions ==========

@@ -44,31 +44,37 @@ func NewAdminHandler(server *Server) chi.Router {
 	router := chi.NewRouter()
 
 	// Existing routes
-	router.Get("/client/{id}", s.clientEditFormById)
-	router.Get("/add_client", s.addClientForm)
-
-	router.Post("/add_client", s.addClient)
-	router.Post("/client/{id}", s.editClient)
-
-	router.Get("/user/{id}", s.editUserForm)
-	router.Get("/add_user", s.addUserForm)
-
-	router.Post("/add_user", s.addUserHandler)
-	router.Post("/user/{id}", s.editUserHandler)
-
-	// New dashboard routes
-	router.Get("/", s.dashboard)
-
-	router.Get("/configuration", s.configuration)
-	router.Put("/configuration", s.updateConfiguration)
-
-	// templs component
-	router.Get("/clients", s.clientsList)
-	router.Get("/users", s.usersList)
-
+	// --- Unprotected Routes ---
+	// These routes do NOT require OIDC token validation.
+	router.Get("/", s.dashboard) // Dashboard is now explicitly unprotected
 	router.Get("/login", s.login)
-
 	router.Get("/oidc/callback", s.oidcCallback)
+
+	router.Get("/add_user", s.addUser)
+	router.Get("/user/{id}", s.editUserForm)
+	// router.Get("/add_client", s.addClientForm)
+
+	// --- Protected Routes Group ---
+	// All routes mounted within this group will have the AuthMiddleware applied.
+	router.Group(func(r chi.Router) {
+		r.Use(s.AuthMiddleware) // Apply authentication middleware to all routes within this group
+
+		// Existing protected routes:
+		r.Get("/client/{id}", s.clientEditFormById)
+		r.Post("/add_client", s.addClient)
+		r.Post("/client/{id}", s.editClient)
+
+		r.Get("/user_form", s.addUserForm)
+		r.Post("/add_user", s.addUserHandler)
+
+		r.Post("/user/{id}", s.editUserHandler)
+
+		r.Get("/configuration", s.configuration)
+		r.Put("/configuration", s.updateConfiguration)
+
+		r.Get("/clients", s.clientsList)
+		r.Get("/users", s.usersList)
+	})
 
 	return router
 }
@@ -227,25 +233,7 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 
 func (s *adminHandler) editUserForm(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-
-	user, err := s.server.Storage.GetUserById(r.Context(), id)
-	if err != nil {
-		log.Printf("\n error: %+v", errors.Is(err, sql.ErrNoRows))
-		if errors.Is(err, sql.ErrNoRows) {
-			templates.NotFoundPage("User id not found for modification").Render(r.Context(), w)
-			return
-		}
-		slog.Error("User id does not exist", slog.String("error", err.Error()))
-		writeHtmlNotification(templates.NotifInfo{
-			Msg:  "User not found",
-			Type: notificationTypeError,
-		}, r, w)
-		return
-	}
-
-	// Convert storage.User to UserFormData
-	userFormData := templates.StorageUserToFormData(user)
-	templates.UserFormPage(&userFormData).Render(r.Context(), w)
+	templates.UserFormPage(&id).Render(r.Context(), w)
 }
 
 func (s *adminHandler) editUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -307,8 +295,33 @@ func (s *adminHandler) editUserHandler(w http.ResponseWriter, r *http.Request) {
 	}, r, w)
 }
 
-func (s *adminHandler) addUserForm(w http.ResponseWriter, r *http.Request) {
+func (s *adminHandler) addUser(w http.ResponseWriter, r *http.Request) {
 	templates.UserFormPage(nil).Render(r.Context(), w)
+}
+
+func (s *adminHandler) addUserForm(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	log.Printf("\n id %+v", id)
+	user, err := s.server.Storage.GetUserById(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			fmt.Printf("\n inside the no row \n")
+			templates.UserForm(nil).Render(r.Context(), w)
+			return
+		}
+		slog.Error("User id does not exist", slog.String("error", err.Error()))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "User not found",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	log.Printf("\n user %+v", user)
+	// Convert storage.User to UserFormData
+	userFormData := templates.StorageUserToFormData(user)
+	log.Printf("\n userFormData %+v", userFormData)
+	templates.UserForm(&userFormData).Render(r.Context(), w)
 }
 
 func (s *adminHandler) addUserHandler(w http.ResponseWriter, r *http.Request) {

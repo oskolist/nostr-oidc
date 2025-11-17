@@ -93,8 +93,8 @@
             localStorage.removeItem('pkce_redirect_uri');
             localStorage.removeItem('pkce_client_id');
             // Set the cookie (adjust expiration, path, etc., as needed)
-            if (data.access_token) {
-                localStorage.setItem('oidc_access_token', data.access_token);
+            if (data.id_token) {
+                localStorage.setItem('oidc_access_token', data.id_token);
             }
 
         } else {
