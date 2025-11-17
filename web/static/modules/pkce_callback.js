@@ -97,6 +97,9 @@
                 localStorage.setItem('oidc_access_token', data.id_token);
             }
 
+            // Start countdown and redirect
+            startRedirectCountdown();
+
         } else {
             showNotification(`Error exchanging tokens: ${data.error_description || data.error || response.statusText}`, 'error');
             document.getElementById('status-message').innerText = `Error: ${data.error || response.statusText}`;
@@ -108,5 +111,25 @@
         document.getElementById('status-message').innerText = 'Error: Network or server issue.';
         document.getElementById('token-response').innerText = error.message;
         console.error('Token exchange error:', error);
+    }
+    function startRedirectCountdown() {
+        const countdownElement = document.getElementById('redirect-countdown');
+        if (!countdownElement) return;
+
+        countdownElement.classList.remove('hidden');
+        let remainingSeconds = 3;
+
+        countdownElement.innerText = `Redirecting in ${remainingSeconds} seconds...`;
+
+        const intervalId = setInterval(() => {
+            remainingSeconds -= 1;
+            if (remainingSeconds > 0) {
+                countdownElement.innerText = `Redirecting in ${remainingSeconds} seconds...`;
+            } else {
+                clearInterval(intervalId);
+                countdownElement.innerText = 'Redirecting now...';
+                window.location.href = '/admin';
+            }
+        }, 1000);
     }
 })()

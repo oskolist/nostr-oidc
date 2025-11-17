@@ -13,6 +13,7 @@ templ AdminPKCECallback(tokenEndpoint *url.URL) {
 				</div>
 				<div id="notifications-container" class="space-y-2 mb-4"></div>
 				<div id="callback-status" class="space-y-4 text-center text-gray-700 dark:text-gray-300">
+					<div id="redirect-countdown" class="mt-4 text-sm font-medium text-gray-600 dark:text-gray-400 hidden"></div>
 					<p>Status: <span id="status-message">Initiating token exchange...</span></p>
 					<p>
 						Code: <span
@@ -30,7 +31,7 @@ templ AdminPKCECallback(tokenEndpoint *url.URL) {
 						Response:
 						<pre
 							id="token-response"
-							class="font-mono text-xs text-left whitespace-pre-wrap bg-gray-100 dark:bg-gray-700 p-2 rounded"
+							class="font-mono text-xs text-left whitespace-pre-wrap bg-gray-100 dark:bg-gray-700 p-2 rounded overflow-x-auto overflow-y-auto max-h-96 break-words"
 						></pre>
 					</p>
 				</div>
