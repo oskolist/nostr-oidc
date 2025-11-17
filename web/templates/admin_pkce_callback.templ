@@ -4,7 +4,7 @@ import "net/url"
 
 // AdminPKCECallback template displays the result of the PKCE authorization code exchange.
 templ AdminPKCECallback(tokenEndpoint *url.URL) {
-	@Layout("PKCE Callback") {
+	@Layout("PKCE Callback", nil) {
 		<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
 			<div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-md p-8">
 				<div class="text-center mb-6">

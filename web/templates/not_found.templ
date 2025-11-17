@@ -2,7 +2,7 @@ package templates
 
 // NotFoundPage renders a 404 error page with a custom message
 templ NotFoundPage(message string) {
-	@Layout("404 - Page Not Found") {
+	@Layout("404 - Page Not Found", nil) {
 		<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
 			<div class="max-w-md w-full text-center">
 				<!-- 404 Header -->
@@ -60,7 +60,7 @@ templ NotFoundPage(message string) {
 
 // NotFoundPageCompact renders a minimal 404 error page with custom message
 templ NotFoundPageCompact(message string) {
-	@Layout("404 - Not Found") {
+	@Layout("404 - Not Found", nil) {
 		<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4">
 			<div class="text-center">
 				<h1 class="text-6xl font-bold text-indigo-600 mb-2">404</h1>
@@ -79,7 +79,7 @@ templ NotFoundPageCompact(message string) {
 
 // NotFoundWithDetails renders a 404 page with detailed error information
 templ NotFoundWithDetails(message string, requestPath string) {
-	@Layout("404 - Not Found") {
+	@Layout("404 - Not Found", nil) {
 		<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
 			<div class="max-w-2xl mx-auto">
 				<!-- Header -->

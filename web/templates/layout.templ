@@ -2,10 +2,13 @@ package templates
 
 var darkModeScript = templ.NewOnceHandle()
 
-templ Layout(title string) {
+templ Layout(title string, headContent templ.Component) {
 	<html class="scroll-smooth">
 		<head>
 			<title>{ title }</title>
+			if headContent != nil {
+				@headContent
+			}
 			@darkModeScript.Once() {
 				<script>
 					// Ensure initial theme matches user preference before rendering
