@@ -17,10 +17,29 @@ type ClientFormData struct {
 	RedirectURIGlobs           []string `form:"redirect_uri_globs" label:"Redirect URI Globs"`
 }
 
-// ClientFormPage renders the full page with the client form
-templ ClientFormPage(client *ClientFormData) {
+templ ClientFormPage(clientId *string) {
 	@Layout("Client Configuration") {
-		@ClientForm(client)
+			{{clientFormUrl :=  "/admin/client_form"
+			
+			if clientId != nil {
+				clientFormUrl += fmt.Sprintf("?id=%s", *clientId)
+			}
+		}}
+	<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4 sm:px-6 lg:px-8">
+		<div class="max-w-4xl mx-auto dark:text-white">
+			<!-- Header -->
+			<div class="mb-8">
+				<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Client Configuration</h1>
+				<p class="mt-2 text-lg text-gray-600 dark:text-gray-300">Manage client accounts and settings</p>
+			</div>
+		<div hx-get={clientFormUrl}
+		hx-trigger="load"
+		hx-swap="innerHTML"
+		hx-target=".form"
+		class="form"
+		></div>
+		</div>
+	</div>
 	}
 }
 

@@ -52,7 +52,9 @@ func NewAdminHandler(server *Server) chi.Router {
 
 	router.Get("/add_user", s.addUser)
 	router.Get("/user/{id}", s.editUserForm)
-	// router.Get("/add_client", s.addClientForm)
+
+	router.Get("/add_client", s.addClientRoute)
+	router.Get("/client/{id}", s.editClientFormById)
 
 	// --- Protected Routes Group ---
 	// All routes mounted within this group will have the AuthMiddleware applied.
@@ -60,9 +62,9 @@ func NewAdminHandler(server *Server) chi.Router {
 		r.Use(s.AuthMiddleware) // Apply authentication middleware to all routes within this group
 
 		// Existing protected routes:
-		r.Get("/client/{id}", s.clientEditFormById)
-		r.Post("/add_client", s.addClient)
+		r.Get("/client_form", s.clientFormFragmentHandler)
 		r.Post("/client/{id}", s.editClient)
+		r.Post("/add_client", s.addClient)
 
 		r.Get("/user_form", s.addUserForm)
 		r.Post("/add_user", s.addUserHandler)
@@ -77,6 +79,10 @@ func NewAdminHandler(server *Server) chi.Router {
 	})
 
 	return router
+}
+
+func (s *adminHandler) addClientRoute(w http.ResponseWriter, r *http.Request) {
+	templates.ClientFormPage(nil).Render(r.Context(), w)
 }
 
 type adminHandler struct {
@@ -106,14 +112,17 @@ func (s *adminHandler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	templates.AdminPKCECallback(tokenEndpoint).Render(r.Context(), w)
 }
 
-func (s *adminHandler) clientEditFormById(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+func (s *adminHandler) clientFormFragmentHandler(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		templates.ClientForm(nil).Render(r.Context(), w)
+		return
+	}
 
 	client, err := s.server.Storage.GetClientByClientID(r.Context(), id)
 	if err != nil {
-		log.Printf("\n error: %+v", errors.Is(err, sql.ErrNoRows))
 		if errors.Is(err, sql.ErrNoRows) {
-			templates.NotFoundPage("Client id not found for modification").Render(r.Context(), w)
+			templates.ClientForm(nil).Render(r.Context(), w)
 			return
 		}
 		slog.Error("Client id does not exist", slog.String("error", err.Error()))
@@ -124,13 +133,13 @@ func (s *adminHandler) clientEditFormById(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Convert op.Client interface to ClientFormData
 	clientInfo := templates.ClientToFormData(client)
-	templates.ClientFormPage(&clientInfo).Render(r.Context(), w)
+	templates.ClientForm(&clientInfo).Render(r.Context(), w)
 }
 
-func (s *adminHandler) addClientForm(w http.ResponseWriter, r *http.Request) {
-	templates.ClientFormPage(nil).Render(r.Context(), w)
+func (s *adminHandler) editClientFormById(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	templates.ClientFormPage(&id).Render(r.Context(), w)
 }
 
 func (s *adminHandler) addClient(w http.ResponseWriter, r *http.Request) {
