@@ -1073,13 +1073,13 @@ func (s *storageDB) SearchAllNonAdminClients(tx *sql.Tx) ([]Client, error) {
 		panic("tx cannot be nil")
 	}
 
-	query := fmt.Sprintf(`
+	query := `
 		SELECT id, secret, redirect_uris, application_type, auth_method, response_types,
 			   grant_types, access_token_type, dev_mode, id_token_userinfo_claims_assertion,
 			   clock_skew, post_logout_redirect_uri_globs, redirect_uri_globs
-		FROM clients WHERE id != "%s"`, OICD_ADMIN_DASHBOARD_CLIENT_ID)
+		FROM clients WHERE id != ?`
 
-	rows, err := tx.Query(query)
+	rows, err := tx.Query(query, OICD_ADMIN_DASHBOARD_CLIENT_ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return []Client{}, nil
@@ -1107,48 +1107,14 @@ func (s *storageDB) SearchAllNonAdminClients(tx *sql.Tx) ([]Client, error) {
 }
 
 // SearchAllUsers retrieves all users from the database
-func (s *storageDB) SearchAllUsers(tx *sql.Tx) ([]User, error) {
+func (s *storageDB) SearchAllUsers(tx *sql.Tx, admin bool) ([]User, error) {
 	if tx == nil {
 		panic("tx cannot be nil")
 	}
 
-	query := `SELECT id, npub, preferred_language, is_admin, active FROM users`
+	query := `SELECT id, npub, preferred_language, is_admin, active FROM users WHERE is_admin == ?`
 
-	rows, err := tx.Query(query)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return []User{}, nil
-		}
-		return nil, fmt.Errorf("tx.Query(SearchAllUsers): %w", err)
-	}
-	defer rows.Close()
-
-	var users []User
-	for rows.Next() {
-		var user User
-		err := user.ScanRow(rows)
-		if err != nil {
-			return nil, fmt.Errorf("user.ScanRow(SearchAllUsers): %w", err)
-		}
-		users = append(users, user)
-	}
-
-	// Check for any error that occurred during iteration
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows.Err(SearchAllUsers): %w", err)
-	}
-
-	return users, nil
-}
-
-func (s *storageDB) SearchAllNonAdminUsers(tx *sql.Tx) ([]User, error) {
-	if tx == nil {
-		panic("tx cannot be nil")
-	}
-
-	query := `SELECT id, npub, preferred_language, is_admin, active FROM users WHERE is_admin != true`
-
-	rows, err := tx.Query(query)
+	rows, err := tx.Query(query, admin)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return []User{}, nil

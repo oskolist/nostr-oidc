@@ -1292,7 +1292,26 @@ func (s *Storage) GetAllUsers(ctx context.Context) ([]User, error) {
 	}
 	defer tx.Rollback()
 
-	users, err := s.db.SearchAllNonAdminUsers(tx)
+	users, err := s.db.SearchAllUsers(tx, false)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.SearchAllUsers(tx). %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("tx.Commit(). %w", err)
+	}
+	return users, nil
+}
+
+func (s *Storage) GetAllAdminUsers(ctx context.Context) ([]User, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
+	}
+	defer tx.Rollback()
+
+	users, err := s.db.SearchAllUsers(tx, true)
 	if err != nil {
 		return nil, fmt.Errorf("s.db.SearchAllUsers(tx). %w", err)
 	}

@@ -34,6 +34,10 @@ type administration interface {
 	UpdateConfiguration(ctx context.Context, config *storage.Configuration) error
 
 	NsecIsRegistered(ctx context.Context) (bool, error)
+
+	GetAllClients(ctx context.Context) ([]storage.Client, error)
+	GetAllUsers(ctx context.Context) ([]storage.User, error)
+	GetAllAdminUsers(ctx context.Context) ([]storage.User, error)
 }
 
 // NewSignupHandler creates a new signup handler
@@ -77,6 +81,8 @@ func NewAdminHandler(server *Server) chi.Router {
 
 		r.Get("/clients", s.clientsList)
 		r.Get("/users", s.usersList)
+
+		r.Get("/admin_users", s.adminUsersList)
 	})
 
 	return router
@@ -411,6 +417,27 @@ func (s *adminHandler) clientsList(w http.ResponseWriter, r *http.Request) {
 	templates.ClientList(clients).Render(r.Context(), w)
 }
 
+func (s *adminHandler) adminUsersList(w http.ResponseWriter, r *http.Request) {
+	// For now, return empty list - will be populated from storage later
+
+	usersDb, err := s.server.Storage.GetAllAdminUsers(r.Context())
+	if err != nil {
+		slog.Error("s.server.Storage.GetAllAdminUsers(r.Context())", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not get list of admin users",
+			Type: notificationTypeError,
+		}, r, w)
+	}
+
+	users := make([]templates.UserFormData, len(usersDb))
+	for i, userDb := range usersDb {
+		user := templates.StorageUserToFormData(&userDb)
+		users[i] = user
+	}
+
+	templates.UserList(users).Render(r.Context(), w)
+}
+
 func (s *adminHandler) usersList(w http.ResponseWriter, r *http.Request) {
 	usersDb, err := s.server.Storage.GetAllUsers(r.Context())
 	if err != nil {
@@ -445,7 +472,7 @@ func (s *adminHandler) configurationFormFragmentHandler(w http.ResponseWriter, r
 
 	nsecRegistered, err := s.server.Storage.NsecIsRegistered(r.Context())
 	if err != nil {
-		slog.Error("failed to get configuration", slog.String("error", err.Error()))
+		slog.Error("failed to get configuration", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not check the configuration correctly",
 			Type: notificationTypeError,
