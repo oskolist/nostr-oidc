@@ -56,6 +56,7 @@ func NewAdminHandler(server *Server) chi.Router {
 	router.Get("/add_client", s.addClientRoute)
 	router.Get("/client/{id}", s.editClientFormById)
 
+	router.Get("/configuration", s.configuration)
 	// --- Protected Routes Group ---
 	// All routes mounted within this group will have the AuthMiddleware applied.
 	router.Group(func(r chi.Router) {
@@ -71,7 +72,7 @@ func NewAdminHandler(server *Server) chi.Router {
 
 		r.Post("/user/{id}", s.editUserHandler)
 
-		r.Get("/configuration", s.configuration)
+		r.Get("/configuration_form", s.configurationFormFragmentHandler)
 		r.Put("/configuration", s.updateConfiguration)
 
 		r.Get("/clients", s.clientsList)
@@ -431,26 +432,32 @@ func (s *adminHandler) usersList(w http.ResponseWriter, r *http.Request) {
 }
 
 // to do. The new version will handle fetching the config, rendering the template, and processing updates.
-func (s *adminHandler) configuration(w http.ResponseWriter, r *http.Request) {
+func (s *adminHandler) configurationFormFragmentHandler(w http.ResponseWriter, r *http.Request) {
 	cfg, err := s.server.Storage.GetConfiguration(r.Context())
 	if err != nil || cfg == nil {
 		slog.Error("failed to get configuration", slog.String("error", err.Error()))
-		// Default to an empty config if not found, to avoid nil pointer dereference
-		// In a real app, you might want to create a default config here if not found
-		templates.NotFoundPage("Could not get the baseline configuration").Render(r.Context(), w)
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not get the baseline configuration",
+			Type: notificationTypeError,
+		}, r, w)
 		return
 	}
 
 	nsecRegistered, err := s.server.Storage.NsecIsRegistered(r.Context())
 	if err != nil {
 		slog.Error("failed to get configuration", slog.String("error", err.Error()))
-		// Default to an empty config if not found, to avoid nil pointer dereference
-		// In a real app, you might want to create a default config here if not found
-		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not check the configuration correctly",
+			Type: notificationTypeError,
+		}, r, w)
 		return
 	}
 
-	templates.AdminConfiguration(*cfg, nsecRegistered).Render(r.Context(), w)
+	templates.AdminConfigurationForm(*cfg, nsecRegistered).Render(r.Context(), w)
+}
+
+func (s *adminHandler) configuration(w http.ResponseWriter, r *http.Request) {
+	templates.AdminConfigurationPage().Render(r.Context(), w)
 }
 
 func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Request) {
