@@ -58,7 +58,6 @@ func LogRequestURL(next http.Handler) http.Handler {
 // Use one of the pre-made clients in storage/clients.go or register a new one.
 func SetupServer(server *Server, extraOptions ...op.Option) chi.Router {
 
-
 	config, err := server.Storage.GetConfiguration(context.Background())
 	if err != nil {
 		log.Panicf("could not get the configuration. %+v", err)

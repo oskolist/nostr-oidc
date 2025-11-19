@@ -65,6 +65,7 @@ func (d *deviceLogin) userCodeHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		// renderUserCode(w, err)
+
 		return
 	}
 	userCode := r.Form.Get("user_code")
@@ -80,10 +81,7 @@ func (d *deviceLogin) userCodeHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 
 		slog.Error("d.storage.GetDeviceAuthorizationByUserCode(r.Context(), userCode)", slog.Any("error", err))
-		writeHtmlNotification(templates.NotifInfo{
-			Msg:  "Could not validate loggin",
-			Type: notificationTypeError,
-		}, r, w)
+		templates.ProblemHappened("Could not find the authorization request").Render(r.Context(), w)
 		return
 	}
 

@@ -133,10 +133,7 @@ func (s *adminHandler) clientFormFragmentHandler(w http.ResponseWriter, r *http.
 			return
 		}
 		slog.Error("Client id does not exist", slog.String("error", err.Error()))
-		writeHtmlNotification(templates.NotifInfo{
-			Msg:  "Client not found",
-			Type: notificationTypeError,
-		}, r, w)
+		templates.ProblemHappened("could not find the client").Render(r.Context(), w)
 		return
 	}
 

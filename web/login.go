@@ -83,14 +83,9 @@ func (l *login) loginHandler(w http.ResponseWriter, r *http.Request) {
 	authRequest, err := l.authenticate.AuthRequestByID(r.Context(), id)
 	if err != nil {
 		slog.Error("l.authenticate.AuthRequestByID(r.Context(), nostrEvent.Content)", slog.Any("error", err))
-		writeHtmlNotification(templates.NotifInfo{
-			Msg:  "Could not validate loggin",
-			Type: notificationTypeError,
-		}, r, w)
+		templates.ProblemHappened("Could not find the authorization request").Render(r.Context(), w)
 		return
 	}
-
-	fmt.Printf("\n authRequest: %+v\n ", authRequest)
 
 	templates.Login(id, templates.CodeLogin, config.RegistrationType != "manual", authRequest.GetScopes()).Render(r.Context(), w)
 }
