@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"log/slog"
@@ -230,19 +229,25 @@ func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
 	switch action {
 	case "allowed":
 		err = d.storage.CompleteDeviceAuthorization(r.Context(), data.UserCode, data.UserId)
+		if err != nil {
+			slog.Error(
+				"d.storage.CompleteDeviceAuthorization(r.Context(), data.UserCode, data.UserId)",
+				slog.Any("error", err),
+			)
+			redirectBack(w, r, err.Error())
+			return
+		}
+		templates.LoginSuccess("Device logged in").Render(r.Context(), w)
 	case "denied":
 		err = d.storage.DenyDeviceAuthorization(r.Context(), data.UserCode)
+		templates.LoginCanceled("If you want to retry go back to your device").Render(r.Context(), w)
 	default:
-		err = errors.New("action must be one of \"allow\" or \"deny\"")
-	}
-	if err != nil {
+
 		slog.Error(
 			"action parsing",
-			slog.Any("error", err),
+			slog.Any("error", errors.New("action must be one of \"allow\" or \"deny\"")),
 		)
-		redirectBack(w, r, err.Error())
+		templates.ProblemHappened("The action message you sent iss wrong.").Render(r.Context(), w)
 		return
 	}
-
-	fmt.Fprintf(w, "Device authorization %s. You can now return to the device", action)
 }
