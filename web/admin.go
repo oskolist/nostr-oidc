@@ -99,7 +99,7 @@ type adminHandler struct {
 func (s *adminHandler) login(w http.ResponseWriter, r *http.Request) {
 	client, err := s.server.Storage.GetClientByClientID(r.Context(), storage.OICD_ADMIN_DASHBOARD_CLIENT_ID)
 	if err != nil {
-		slog.Error("Failed to retrieve admin client configuration", slog.String("error", err.Error()))
+		slog.Error("Failed to retrieve admin client configuration", slog.Any("error", err))
 		http.Error(w, "Admin client not configured", http.StatusInternalServerError)
 		return
 	}
@@ -132,7 +132,7 @@ func (s *adminHandler) clientFormFragmentHandler(w http.ResponseWriter, r *http.
 			templates.ClientForm(nil).Render(r.Context(), w)
 			return
 		}
-		slog.Error("Client id does not exist", slog.String("error", err.Error()))
+		slog.Error("Client id does not exist", slog.Any("error", err))
 		templates.ProblemHappened("could not find the client").Render(r.Context(), w)
 		return
 	}
@@ -149,7 +149,7 @@ func (s *adminHandler) editClientFormById(w http.ResponseWriter, r *http.Request
 func (s *adminHandler) addClient(w http.ResponseWriter, r *http.Request) {
 	// Parse form data
 	if err := r.ParseForm(); err != nil {
-		slog.Error("Failed to parse form", slog.String("error", err.Error()))
+		slog.Error("Failed to parse form", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Invalid form data",
 			Type: notificationTypeError,
@@ -175,7 +175,7 @@ func (s *adminHandler) addClient(w http.ResponseWriter, r *http.Request) {
 
 	err := s.server.Storage.AddClient(r.Context(), *client)
 	if err != nil {
-		slog.Error("s.storage.AddClient", slog.String("error", err.Error()))
+		slog.Error("s.storage.AddClient", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not add client",
 			Type: notificationTypeError,
@@ -194,7 +194,7 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	// Parse form data
 	if err := r.ParseForm(); err != nil {
-		slog.Error("Failed to parse form", slog.String("error", err.Error()))
+		slog.Error("Failed to parse form", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Invalid form data",
 			Type: notificationTypeError,
@@ -228,7 +228,7 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.server.Storage.EditClient(r.Context(), *client)
 	if err != nil {
-		slog.Error("s.storage.AddClient", slog.String("error", err.Error()))
+		slog.Error("s.storage.AddClient", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not add client",
 			Type: notificationTypeError,
@@ -253,7 +253,7 @@ func (s *adminHandler) editUserHandler(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	// Parse form data
 	if err := r.ParseForm(); err != nil {
-		slog.Error("Failed to parse form", slog.String("error", err.Error()))
+		slog.Error("Failed to parse form", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Invalid form data",
 			Type: notificationTypeError,
@@ -293,7 +293,7 @@ func (s *adminHandler) editUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = s.server.Storage.EditUser(r.Context(), *user)
 	if err != nil {
-		slog.Error("s.storage.EditUser(r.Context(), *user)", slog.String("error", err.Error()))
+		slog.Error("s.storage.EditUser(r.Context(), *user)", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not add user",
 			Type: notificationTypeError,
@@ -322,7 +322,7 @@ func (s *adminHandler) addUserForm(w http.ResponseWriter, r *http.Request) {
 			templates.UserForm(nil).Render(r.Context(), w)
 			return
 		}
-		slog.Error("User id does not exist", slog.String("error", err.Error()))
+		slog.Error("User id does not exist", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "User not found",
 			Type: notificationTypeError,
@@ -340,7 +340,7 @@ func (s *adminHandler) addUserForm(w http.ResponseWriter, r *http.Request) {
 func (s *adminHandler) addUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse form data
 	if err := r.ParseForm(); err != nil {
-		slog.Error("Failed to parse form", slog.String("error", err.Error()))
+		slog.Error("Failed to parse form", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Invalid form data",
 			Type: notificationTypeError,
@@ -373,7 +373,7 @@ func (s *adminHandler) addUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = s.server.Storage.AddUser(r.Context(), *user)
 	if err != nil {
-		slog.Error("s.storage.AddUser", slog.String("error", err.Error()))
+		slog.Error("s.storage.AddUser", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not add user",
 			Type: notificationTypeError,
@@ -397,7 +397,7 @@ func (s *adminHandler) clientsList(w http.ResponseWriter, r *http.Request) {
 
 	clientsDb, err := s.server.Storage.GetAllClients(r.Context())
 	if err != nil {
-		slog.Error("s.server.Storage.GetAllClients(r.Context())", slog.String("error", err.Error()))
+		slog.Error("s.server.Storage.GetAllClients(r.Context())", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not get list of clients",
 			Type: notificationTypeError,
@@ -438,7 +438,7 @@ func (s *adminHandler) adminUsersList(w http.ResponseWriter, r *http.Request) {
 func (s *adminHandler) usersList(w http.ResponseWriter, r *http.Request) {
 	usersDb, err := s.server.Storage.GetAllUsers(r.Context())
 	if err != nil {
-		slog.Error("s.server.Storage.GetAllUsers(r.Context())", slog.String("error", err.Error()))
+		slog.Error("s.server.Storage.GetAllUsers(r.Context())", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not get list of users",
 			Type: notificationTypeError,
@@ -459,7 +459,7 @@ func (s *adminHandler) usersList(w http.ResponseWriter, r *http.Request) {
 func (s *adminHandler) configurationFormFragmentHandler(w http.ResponseWriter, r *http.Request) {
 	cfg, err := s.server.Storage.GetConfiguration(r.Context())
 	if err != nil || cfg == nil {
-		slog.Error("failed to get configuration", slog.String("error", err.Error()))
+		slog.Error("failed to get configuration", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not get the baseline configuration",
 			Type: notificationTypeError,
@@ -488,7 +488,7 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 	var inputConfig storage.Configuration
 
 	if err := r.ParseForm(); err != nil {
-		slog.Error("failed to decode form into config struct", slog.String("error", err.Error()))
+		slog.Error("failed to decode form into config struct", slog.Any("error", err))
 
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not parse form",
@@ -499,7 +499,7 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 
 	// Use the form decoder to fill the struct
 	if err := decoder.Decode(&inputConfig, r.PostForm); err != nil {
-		slog.Error("failed to decode form into config struct", slog.String("error", err.Error()))
+		slog.Error("failed to decode form into config struct", slog.Any("error", err))
 
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not parse form",
@@ -512,7 +512,7 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 	if !emptyNsecField {
 		vtx, err := vertex.NewVertexChecker(*inputConfig.Nsec)
 		if err != nil {
-			slog.Error("vertex.NewVertexChecker(*inputConfig.Nsec)", slog.String("error", err.Error()))
+			slog.Error("vertex.NewVertexChecker(*inputConfig.Nsec)", slog.Any("error", err))
 			if errors.Is(err, vertex.ErrInvalidNsec) {
 				writeHtmlNotification(templates.NotifInfo{
 					Msg:  "You don't have a valid nsec",
@@ -532,7 +532,7 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 
 	nsecRegistered, err := s.server.Storage.NsecIsRegistered(r.Context())
 	if err != nil {
-		slog.Error("failed to check if nsec is registered", slog.String("error", err.Error()))
+		slog.Error("failed to check if nsec is registered", slog.Any("error", err))
 		// Default to an empty config if not found, to avoid nil pointer dereference
 		// In a real app, you might want to create a default config here if not found
 		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
@@ -549,7 +549,7 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 
 	config, err := s.server.Storage.GetConfiguration(r.Context())
 	if err != nil {
-		slog.Error("failed to get configuration", slog.String("error", err.Error()))
+		slog.Error("failed to get configuration", slog.Any("error", err))
 		// Default to an empty config if not found, to avoid nil pointer dereference
 		// In a real app, you might want to create a default config here if not found
 		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
@@ -560,7 +560,7 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 	inputConfig.EncryptionKey = config.EncryptionKey
 
 	if err := s.server.Storage.UpdateConfiguration(r.Context(), &inputConfig); err != nil {
-		slog.Error("failed to update configuration", slog.String("error", err.Error()))
+		slog.Error("failed to update configuration", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not update configuration",
 			Type: notificationTypeError,

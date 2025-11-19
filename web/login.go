@@ -66,7 +66,7 @@ type authenticate interface {
 func (l *login) loginHandler(w http.ResponseWriter, r *http.Request) {
 	config, err := l.authenticate.GetConfiguration(r.Context())
 	if err != nil {
-		slog.Error("Failed to generate challenge", slog.String("error", err.Error()))
+		slog.Error("Failed to generate challenge", slog.Any("error", err))
 		http.Error(w, "Error generating challenge", http.StatusInternalServerError)
 		return
 	}
@@ -221,7 +221,7 @@ func (s *signupHandler) generateChallenge() (string, error) {
 func (s *signupHandler) displaySignupForm(w http.ResponseWriter, r *http.Request) {
 	config, err := s.storage.GetConfiguration(r.Context())
 	if err != nil {
-		slog.Error("Failed to generate challenge", slog.String("error", err.Error()))
+		slog.Error("Failed to generate challenge", slog.Any("error", err))
 		http.Error(w, "Error generating challenge", http.StatusInternalServerError)
 		return
 	}
@@ -234,7 +234,7 @@ func (s *signupHandler) displaySignupForm(w http.ResponseWriter, r *http.Request
 	// Generate a new challenge for this form
 	challenge, err := s.generateChallenge()
 	if err != nil {
-		slog.Error("Failed to generate challenge", slog.String("error", err.Error()))
+		slog.Error("Failed to generate challenge", slog.Any("error", err))
 		http.Error(w, "Error generating challenge", http.StatusInternalServerError)
 		return
 	}
@@ -284,7 +284,7 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 	var nostrEvent nostr.Event
 	err = json.Unmarshal(body, &nostrEvent)
 	if err != nil {
-		slog.Error("Failed to parse nostr event", slog.String("error", err.Error()))
+		slog.Error("Failed to parse nostr event", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Invalid event format",
 			Type: notificationTypeError,
@@ -311,7 +311,7 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 	// Verify the signature
 	err = s.storage.CheckNostrEventSignature(nostrEvent)
 	if err != nil {
-		slog.Error("Signature verification failed", slog.String("error", err.Error()))
+		slog.Error("Signature verification failed", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Signature verification failed",
 			Type: notificationTypeError,
@@ -322,7 +322,7 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 	// Parse the public key from the event
 	pubkeyBytes, err := hex.DecodeString(nostrEvent.PubKey)
 	if err != nil {
-		slog.Error("Failed to decode pubkey hex", slog.String("error", err.Error()))
+		slog.Error("Failed to decode pubkey hex", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Invalid public key format",
 			Type: notificationTypeError,
@@ -332,7 +332,7 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 
 	pubkey, err := schnorr.ParsePubKey(pubkeyBytes)
 	if err != nil {
-		slog.Error("Failed to parse schnorr pubkey", slog.String("error", err.Error()))
+		slog.Error("Failed to parse schnorr pubkey", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Invalid Nostr public key",
 			Type: notificationTypeError,
@@ -391,7 +391,7 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 	// Add user to storage
 	err = s.storage.AddUser(r.Context(), newUser)
 	if err != nil {
-		slog.Error("Failed to create user", slog.String("error", err.Error()))
+		slog.Error("Failed to create user", slog.Any("error", err))
 		// Check if it's a duplicate key error
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") || strings.Contains(err.Error(), "Duplicate") {
 			writeHtmlNotification(templates.NotifInfo{

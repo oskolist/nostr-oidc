@@ -35,7 +35,7 @@ func (s *adminHandler) AuthMiddleware(next http.Handler) http.Handler {
 		idToken := new(oidc.IDTokenClaims)
 		_, err := oidc.ParseToken(tokenString, idToken)
 		if err != nil {
-			slog.Error("Failed to parse and decode ID token", slog.String("error", err.Error()))
+			slog.Error("Failed to parse and decode ID token", slog.Any("error", err))
 			http.Redirect(w, r, "/admin/login", http.StatusFound)
 			return
 		}

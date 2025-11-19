@@ -220,7 +220,7 @@ func ensureOICDAdminDashboardClientIdExists(store *storage.Storage) error {
 
 		err = store.AddClient(context.Background(), *client)
 		if err != nil {
-			slog.Error("s.storage.AddClient", slog.String("error", err.Error()))
+			slog.Error("s.storage.AddClient", slog.Any("error", err))
 			return fmt.Errorf("store.AddClient(context.Background(), *client). %w", err)
 		}
 	}

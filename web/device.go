@@ -56,7 +56,7 @@ func registerDeviceAuth(storage Storage, router chi.Router) {
 func (d *deviceLogin) userCodeHandler(w http.ResponseWriter, r *http.Request) {
 	config, err := d.storage.GetConfiguration(r.Context())
 	if err != nil {
-		slog.Error("Failed to generate challenge", slog.String("error", err.Error()))
+		slog.Error("Failed to generate challenge", slog.Any("error", err))
 		http.Error(w, "Error generating challenge", http.StatusInternalServerError)
 		return
 	}
@@ -119,7 +119,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Debug(
 			"Incorrect body",
-			slog.String("error", err.Error()),
+			slog.Any("error", err),
 		)
 		http.Error(w, "body needs to be a nostr event", http.StatusBadRequest)
 		return
@@ -129,7 +129,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error(
 			"d.storage.CheckNostrEventSignature(nostrEvent)",
-			slog.String("error", err.Error()),
+			slog.Any("error", err),
 		)
 		redirectBack(w, r, err.Error())
 		return
@@ -139,7 +139,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error(
 			"hex.DecodeString(nostrEvent.PubKey)",
-			slog.String("error", err.Error()),
+			slog.Any("error", err),
 		)
 		redirectBack(w, r, err.Error())
 		return
@@ -148,7 +148,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error(
 			"schnorr.ParsePubKey(pbBytes)",
-			slog.String("error", err.Error()),
+			slog.Any("error", err),
 		)
 		redirectBack(w, r, err.Error())
 		return
@@ -158,7 +158,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error(
 			"d.storage.CheckUserNpub(pubkey)",
-			slog.String("error", err.Error()),
+			slog.Any("error", err),
 		)
 		redirectBack(w, r, err.Error())
 		return
@@ -168,7 +168,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error(
 			"d.storage.GetDeviceAuthorizationByUserCode(r.Context(), nostrEvent.Content)",
-			slog.String("error", err.Error()),
+			slog.Any("error", err),
 		)
 		redirectBack(w, r, err.Error())
 		return
@@ -179,7 +179,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error(
 			"d.cookie.Encode(userCodeCookieName, userCodeCookie{nostrEvent.Content, nostrEvent.PubKey})",
-			slog.String("error", err.Error()),
+			slog.Any("error", err),
 		)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -202,7 +202,7 @@ func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error(
 			"r.Cookie(userCodeCookieName)",
-			slog.String("error", err.Error()),
+			slog.Any("error", err),
 		)
 		redirectBack(w, r, err.Error())
 		return
@@ -211,7 +211,7 @@ func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
 	if err = d.cookie.Decode(userCodeCookieName, cookie.Value, &data); err != nil {
 		slog.Error(
 			"d.cookie.Decode(userCodeCookieName, cookie.Value, &data)",
-			slog.String("error", err.Error()),
+			slog.Any("error", err),
 		)
 		redirectBack(w, r, err.Error())
 		return
@@ -219,7 +219,7 @@ func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
 	if err = r.ParseForm(); err != nil {
 		slog.Error(
 			"r.ParseForm()",
-			slog.String("error", err.Error()),
+			slog.Any("error", err),
 		)
 		redirectBack(w, r, err.Error())
 		return
@@ -238,7 +238,7 @@ func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Error(
 			"action parsing",
-			slog.String("error", err.Error()),
+			slog.Any("error", err),
 		)
 		redirectBack(w, r, err.Error())
 		return
