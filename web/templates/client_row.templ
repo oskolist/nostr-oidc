@@ -1,0 +1,65 @@
+package templates
+
+import "fmt"
+
+templ ClientRow(client ClientFormData) {
+	<div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors w-full dark:border-gray-700 dark:hover:bg-gray-700/50">
+		<div class="flex-1 min-w-0">
+			<div class="flex items-center gap-3">
+				<span
+					class="flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 max-w-[12rem] truncate mr-3 dark:bg-blue-900 dark:text-blue-200"
+					title={ client.ClientID }
+				>
+					{ client.ClientID }
+				</span>
+				<div class="min-w-0 flex-1">
+					<p class="font-medium text-gray-900 dark:text-white" title={ client.ClientID }>Client ID: { client.ClientID }</p>
+					<p class="text-sm text-gray-500 dark:text-gray-400" title={ getApplicationTypeLabel(client.ApplicationType) }>Application Type: { getApplicationTypeLabel(client.ApplicationType) }</p>
+					<p class="text-sm text-gray-500 dark:text-gray-400" title={ getAccessTokenTypeLabel(client.AccessTokenType) }>Access Token Type: { getAccessTokenTypeLabel(client.AccessTokenType) }</p>
+				</div>
+			</div>
+		</div>
+		<div>
+			<a
+				href={ templ.URL(fmt.Sprintf("/admin/client/%s", client.ClientID)) }
+				class="inline-flex items-center px-3 py-2 rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors text-sm font-medium dark:bg-indigo-900 dark:text-indigo-200 dark:hover:bg-indigo-800"
+			>
+				<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+					></path>
+				</svg>
+				Edit
+			</a>
+		</div>
+	</div>
+}
+
+// getApplicationTypeLabel returns a human-readable label for the application type
+func getApplicationTypeLabel(appType int) string {
+	switch appType {
+	case 0:
+		return "Web Application"
+	case 1:
+		return "User Agent (SPA)"
+	case 2:
+		return "Native Application"
+	default:
+		return "Unknown"
+	}
+}
+
+// getAccessTokenTypeLabel returns a human-readable label for the access token type
+func getAccessTokenTypeLabel(tokenType int) string {
+	switch tokenType {
+	case 0:
+		return "Bearer Token"
+	case 1:
+		return "JWT Token"
+	default:
+		return "Unknown"
+	}
+}

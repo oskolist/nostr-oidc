@@ -1,0 +1,56 @@
+root = "."
+tmp_dir = "tmp" # Where temporary files are stored
+testdata_dir = "testdata"
+
+[build]
+# Command to build your Go application in development mode with the 'dev' tag.
+# 'tmp/main' is the output binary.
+cmd = "go build -tags dev -o ./tmp/main  main.go"
+
+# The binary to run. Air will look for this in tmp_dir.
+bin = "tmp/main"
+
+# Delay for the build process (in milliseconds) before starting the server.
+# delay = 1000
+
+# Directories or files to exclude from watching.
+# "dist" is crucial here to ignore the JavaScript bundle.
+exclude_dir = ["tmp", "vendor", "testdata", "web/static/dist"]
+
+# File patterns to exclude (like Go test files, Templ generated files).
+exclude_file = ["_test.go", "_templ.go"]
+
+# File extensions to include for watching.
+include_ext = ["go", "tpl", "html", "templ"]
+
+# This is the crucial part: commands to run before building the Go app.
+# 1. `pnpm --filter ./web/static dev` starts the esbuild dev server for JS.
+#    We use `--filter ./web/static` to ensure pnpm runs in the correct directory if air is run from the project root.
+# 2. `templ generate . --watch --proxy="http://localhost:8080"` generates templ files and watches for changes.
+#    Replace "http://localhost:8080" with your actual Go server address if different.
+#    The --proxy flag allows templ to trigger a browser reload when .templ files change.
+pre_cmd = [
+    "cd web/static && pnpm dev",
+    "cd web/static && pnpm tailwind",
+    "templ generate ."
+]
+
+[log]
+# Whether to show time in log output.
+time = false
+
+[color]
+# Custom colors for logs (optional)
+app = ""
+build = "yellow"
+main = "magenta"
+runner = "green"
+
+[misc]
+# Clean up temporary files on exit.
+clean_on_exit = true
+
+[screen]
+# Clear terminal screen on restart.
+clear = true
+exit_on_error = true

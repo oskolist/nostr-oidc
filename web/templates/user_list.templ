@@ -1,0 +1,14 @@
+package templates
+
+templ UserList(users []UserFormData) {
+	<div class="flex flex-col gap-4 dark:text-gray-300">
+		if len(users) == 0 {
+			<div>
+				No users available
+			</div>
+		}
+		for _, user := range users {
+			@UserRow(user)
+		}
+	</div>
+}

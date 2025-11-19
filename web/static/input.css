@@ -1,0 +1,62 @@
+/*
+Source - https://stackoverflow.com/a
+Posted by Wongjn
+Retrieved 2025-11-11, License - CC BY-SA 4.0
+*/
+
+@import "tailwindcss" source("../../../");
+
+/* snackbar css */
+#snackbar {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: #323232;
+  color: #fff;
+  padding: 16px 24px;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  font-size: 14px;
+  min-width: 200px;
+  max-width: 300px;
+  opacity: 0; /* start hidden */
+  transform: translateX(120%);
+  animation: slideInOut 3s ease-in-out forwards;
+}
+
+#snackbar.error {
+  background-color: #EF9A9A; /* Soft Red */
+  color: #000000; /* Black */
+  border: 1px solid #E57373; /* Muted Red */
+}
+
+#snackbar.success {
+  background-color: #388E3C; /* Dark Green */
+  color: #FFFFFF; /* White */
+  border: 1px solid #66BB6A; /* Lighter Green */
+}
+
+#snackbar.warning {
+  background-color: #FF8F00; /* Deep Amber */
+  color: #FFFFFF; /* White */
+  border: 1px solid #FFC107; /* Amber */
+}
+
+@keyframes slideInOut {
+  0% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  10% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  90% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}

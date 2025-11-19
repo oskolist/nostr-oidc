@@ -1,0 +1,48 @@
+package templates
+
+templ pkceScript() {
+	<script src="/static/dist/modules/pkce.js"></script>
+}
+
+templ Pkce(clientID string, redirectURI string, scope string) {
+	@Layout("PKCE Generation", pkceScript()) {
+		<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+			<div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-md p-8">
+				<div class="text-center mb-6">
+					<h2 class="text-2xl font-semibold text-gray-800 dark:text-white">
+						Generating secrets for login
+					</h2>
+					<p class="text-sm text-gray-500 dark:text-gray-400">
+						Please wait while we generate the necessary
+						codes...
+					</p>
+				</div>
+				<div class="space-y-4">
+					<p class="text-center text-gray-700 dark:text-gray-300">
+						Code Verifier:
+						<span
+							id="code_verifier"
+							class="font-mono text-sm text-indigo-600 dark:text-indigo-400 break-all"
+						>Generating...</span>
+					</p>
+					<p class="text-center text-gray-700 dark:text-gray-300">
+						Nonce:
+						<span
+							id="nonce"
+							class="font-mono text-sm text-indigo-600 dark:text-indigo-400 break-all"
+						>Generating...</span>
+					</p>
+					<p class="text-center text-gray-700 dark:text-gray-300">
+						Code Challenge Method: <span class="font-mono text-indigo-600 dark:text-indigo-400">S256</span>
+					</p>
+				</div>
+				@templ.JSONScript("pkce-config", map[string]string{
+					"clientID":    clientID,
+					"redirectURI": redirectURI,
+					"scope":       scope,
+				})
+				
+			</div>
+		</div>
+	}
+}

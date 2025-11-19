@@ -1,0 +1,43 @@
+package templates
+
+import "net/url"
+
+// AdminPKCECallback template displays the result of the PKCE authorization code exchange.
+templ AdminPKCECallback(tokenEndpoint *url.URL) {
+	@Layout("PKCE Callback", nil) {
+		<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+			<div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-md p-8">
+				<div class="text-center mb-6">
+					<h2 class="text-2xl font-semibold text-gray-800 dark:text-white">Processing Authorization Code</h2>
+					<p class="text-sm text-gray-500 dark:text-gray-400">Exchanging authorization code for tokens...</p>
+				</div>
+				<div id="notifications-container" class="space-y-2 mb-4"></div>
+				<div id="callback-status" class="space-y-4 text-center text-gray-700 dark:text-gray-300">
+					<div id="redirect-countdown" class="mt-4 text-sm font-medium text-gray-600 dark:text-gray-400 hidden"></div>
+					<p>Status: <span id="status-message">Initiating token exchange...</span></p>
+					<p>
+						Code: <span
+	id="auth-code"
+	class="font-mono text-sm text-indigo-600 dark:text-indigo-400 break-all"
+></span>
+					</p>
+					<p>
+						Nonce: <span
+	id="nonce-value"
+	class="font-mono text-sm text-indigo-600 dark:text-indigo-400 break-all"
+></span>
+					</p>
+					<p>
+						Response:
+						<pre
+							id="token-response"
+							class="font-mono text-xs text-left whitespace-pre-wrap bg-gray-100 dark:bg-gray-700 p-2 rounded overflow-x-auto overflow-y-auto max-h-96 break-words"
+						></pre>
+					</p>
+				</div>
+				@templ.JSONScript(("token-config"), map[string]string{"tokenEndpoint": tokenEndpoint.String()})
+				<script src="/static/dist/modules/pkce_callback.js" async defer></script>
+			</div>
+		</div>
+	}
+}

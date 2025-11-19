@@ -1,0 +1,246 @@
+package templates
+
+import (
+	"fmt"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
+)
+
+// ClientFormData holds the data needed to render the client form
+type ClientFormData struct {
+	ClientID                   string   `form:"client_id" label:"Client ID"`
+	RedirectURIs               []string `form:"redirect_uris" label:"Redirect URIs"`
+	ApplicationType            int      `form:"application_type" label:"Application Type"`
+	ResponseTypes              []string `form:"response_types" label:"Response Types"`
+	GrantTypes                 []string `form:"grant_types" label:"Grant Types"`
+	AccessTokenType            int      `form:"access_token_type" label:"Access Token Type"`
+	PostLogoutRedirectURIGlobs []string `form:"post_logout_redirect_uri_globs" label:"Post Logout Redirect URI Globs"`
+	RedirectURIGlobs           []string `form:"redirect_uri_globs" label:"Redirect URI Globs"`
+}
+
+templ ClientFormPage(clientId *string) {
+	@Layout("Client Configuration", nil) {
+			{{clientFormUrl :=  "/admin/client_form"
+			
+			if clientId != nil {
+				clientFormUrl += fmt.Sprintf("?id=%s", *clientId)
+			}
+		}}
+	<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4 sm:px-6 lg:px-8">
+		<div class="max-w-4xl mx-auto dark:text-white">
+			<!-- Header -->
+			<div class="mb-8">
+				<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Client Configuration</h1>
+				<p class="mt-2 text-lg text-gray-600 dark:text-gray-300">Manage client accounts and settings</p>
+			</div>
+		<div hx-get={clientFormUrl}
+		hx-trigger="load"
+		hx-swap="innerHTML"
+		hx-target=".form"
+		class="form"
+		></div>
+		</div>
+	</div>
+	}
+}
+
+// ClientForm renders the main client configuration form
+templ ClientForm(client *ClientFormData) {
+	<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4 sm:px-6 lg:px-8">
+		<div class="max-w-4xl mx-auto">
+			<!-- Header -->
+			<div class="mb-8">
+				<h1 class="text-3xl font-bold text-gray-900 dark:text-white">OAuth/OIDC Client Configuration</h1>
+				<p class="mt-2 text-lg text-gray-600 dark:text-gray-300">Configure your OAuth 2.0 and OpenID Connect client settings</p>
+			</div>
+			<!-- Form -->
+			<form
+				hx-post={ getFormEndpoint(client) }
+				hx-target=".form"
+				hx-swap="none"
+				class="form bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-2xl p-8 space-y-8"
+			>
+				<!-- Section 1: Basic Configuration -->
+				<div class="border-b border-gray-200 dark:border-gray-700 pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Basic Configuration</h2>
+					<!-- Client ID -->
+					<div class="mb-6">
+						if client != nil {
+							@TextInput("client_id", "Client ID", "app_client_123", &client.ClientID, true, "Unique identifier for your client application", true, nil)
+						} else {
+							@TextInput("client_id", "Client ID", "app_client_123", nil, true, "Unique identifier for your client application", false, nil)
+						}
+					</div>
+					<!-- Application Type -->
+					<div class="mb-6">
+						if client != nil {
+							@SelectInput("application_type", "Application Type", ApplicationTypeOptions(), func() *string { s := fmt.Sprintf("%d", client.ApplicationType); return &s }(), true, "Choose the application type - web, user agent, or native")
+						} else {
+							@SelectInput("application_type", "Application Type", ApplicationTypeOptions(), func() *string { s := "0"; return &s }(), true, "Choose the application type - web, user agent, or native")
+						}
+					</div>
+				</div>
+				<!-- Section 2: Redirect URIs -->
+				<div class="border-b border-gray-200 dark:border-gray-700 pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Redirect Configuration</h2>
+					<!-- Redirect URIs -->
+					<div class="mb-6">
+						if client != nil {
+							@MultipleInputList("redirect_uris", "Redirect URIs", client.RedirectURIs, "https://example.com/callback", true, "OAuth redirect URIs where tokens will be sent")
+						} else {
+							@MultipleInputList("redirect_uris", "Redirect URIs", []string{}, "https://example.com/callback", true, "OAuth redirect URIs where tokens will be sent")
+						}
+					</div>
+					<!-- Redirect URI Globs -->
+					<div class="mb-6">
+						if client != nil {
+							@MultipleInputList("redirect_uri_globs", "Redirect URI Globs", client.RedirectURIGlobs, "https://example.com/*", false, "Glob patterns for redirect URI matching")
+						} else {
+							@MultipleInputList("redirect_uri_globs", "Redirect URI Globs", []string{}, "https://example.com/*", false, "Glob patterns for redirect URI matching")
+						}
+					</div>
+					<!-- Post Logout Redirect URI Globs -->
+					<div class="mb-6">
+						if client != nil {
+							@MultipleInputList("post_logout_redirect_uri_globs", "Post Logout Redirect URI Globs", client.PostLogoutRedirectURIGlobs, "https://example.com/logout", false, "Glob patterns for post-logout redirect URIs")
+						} else {
+							@MultipleInputList("post_logout_redirect_uri_globs", "Post Logout Redirect URI Globs", []string{}, "https://example.com/logout", false, "Glob patterns for post-logout redirect URIs")
+						}
+					</div>
+				</div>
+				<!-- Section 3: OIDC Response Types -->
+				<div class="border-b border-gray-200 dark:border-gray-700 pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Response Types</h2>
+					<p class="text-sm text-gray-600 mb-4">Select the OpenID Connect response types your application supports</p>
+					if client != nil {
+						@CheckboxGroup("response_types", ResponseTypeOptions(), client.ResponseTypes)
+					} else {
+						@CheckboxGroup("response_types", ResponseTypeOptions(), []string{})
+					}
+				</div>
+				<!-- Section 4: Token Configuration -->
+				<div class="border-b border-gray-200 dark:border-gray-700 pb-8">
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Token Configuration</h2>
+					<!-- Grant Types -->
+					<div class="mb-6">
+						<label class="block text-sm font-medium text-gray-700 mb-3">
+							Grant Types
+							<span class="text-red-500 ml-1">*</span>
+						</label>
+						<p class="text-xs text-gray-600 mb-3">Select the OAuth 2.0 grant types your application supports</p>
+						if client != nil {
+							@CheckboxGroup("grant_types", GrantTypeCheckboxOptions(), client.GrantTypes)
+						} else {
+							@CheckboxGroup("grant_types", GrantTypeCheckboxOptions(), []string{})
+						}
+					</div>
+					<!-- Access Token Type -->
+					<div class="mb-6">
+						if client != nil {
+							@SelectInput("access_token_type", "Access Token Type", AccessTokenTypeOptions(), func() *string { s := fmt.Sprintf("%d", client.AccessTokenType); return &s }(), true, "Type of access token to issue (Bearer or JWT)")
+						} else {
+							@SelectInput("access_token_type", "Access Token Type", AccessTokenTypeOptions(), func() *string { s := "0"; return &s }(), true, "Type of access token to issue (Bearer or JWT)")
+						}
+					</div>
+				</div>
+				<!-- Form Actions -->
+				<div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
+					<button
+						type="button"
+						onclick="window.history.back()"
+						class="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-800 dark:focus:ring-indigo-400"
+					>
+						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+						</svg>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						class="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-md hover:shadow-lg dark:focus:ring-offset-gray-800 dark:focus:ring-indigo-400"
+					>
+						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+						</svg>
+						if client == nil {
+							Create Client
+						} else {
+							Save Configuration
+						}
+					</button>
+				</div>
+			</form>
+		</div>
+	</div>
+}
+
+// ApplicationTypeOptions returns the available application types
+func ApplicationTypeOptions() []SelectOption {
+	return []SelectOption{
+		{Label: "Web Application", Value: "0"},
+		{Label: "User Agent (SPA)", Value: "1"},
+		{Label: "Native Application", Value: "2"},
+	}
+}
+
+// AccessTokenTypeOptions returns the available access token types
+func AccessTokenTypeOptions() []SelectOption {
+	return []SelectOption{
+		{Label: "Bearer Token", Value: "0"},
+		{Label: "JWT Token", Value: "1"},
+	}
+}
+
+// GrantTypeOptions returns the available grant types as SelectOptions (deprecated - use GrantTypeCheckboxOptions)
+func GrantTypeOptions() []SelectOption {
+	grants := oidc.AllGrantTypes
+	options := make([]SelectOption, 0, len(grants))
+	for _, g := range grants {
+		options = append(options, SelectOption{
+			Label: string(g),
+			Value: string(g),
+		})
+	}
+	return options
+}
+
+// GrantTypeCheckboxOptions returns the available grant types as CheckboxOptions
+func GrantTypeCheckboxOptions() []CheckboxOption {
+	grants := oidc.AllGrantTypes
+	options := make([]CheckboxOption, 0, len(grants))
+	for _, g := range grants {
+		options = append(options, CheckboxOption{
+			Label: string(g),
+			Value: string(g),
+		})
+	}
+	return options
+}
+
+// ResponseTypeOptions returns the available response types
+func ResponseTypeOptions() []CheckboxOption {
+	responseTypes := []string{
+		"code",
+		"id_token",
+		"token",
+		"id_token token",
+		"code id_token",
+		"code token",
+		"code id_token token",
+	}
+	options := make([]CheckboxOption, 0, len(responseTypes))
+	for _, rt := range responseTypes {
+		options = append(options, CheckboxOption{
+			Label: rt,
+			Value: rt,
+		})
+	}
+	return options
+}
+
+// getFormEndpoint determines the form submission endpoint based on whether the client is nil
+func getFormEndpoint(client *ClientFormData) string {
+	if client == nil {
+		return "/admin/add_client"
+	}
+	return fmt.Sprintf("/admin/client/%s", client.ClientID)
+}

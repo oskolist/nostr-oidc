@@ -1,0 +1,760 @@
+================
+CODE SNIPPETS
+================
+TITLE: Start OIDC OP Server and Web Client
+DESCRIPTION: Demonstrates how to start the OIDC OP server and a web client application. The web client connects to the OP to perform authorization code flow.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/README.md#_snippet_0
+
+LANGUAGE: bash
+CODE:
+```
+# start oidc op server
+# oidc discovery http://localhost:9998/.well-known/openid-configuration
+go run github.com/zitadel/oidc/v3/example/server
+
+# start oidc web client (in a new terminal)
+CLIENT_ID=web CLIENT_SECRET=secret ISSUER=http://localhost:9998/ SCOPES="openid profile" PORT=9999 go run github.com/zitadel/oidc/v3/example/client/app
+```
+
+--------------------------------
+
+TITLE: Start Dynamic OIDC OP Server
+DESCRIPTION: Starts a dynamic OpenID Provider server. This allows for on-the-fly configuration and is useful for testing different OIDC scenarios.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/README.md#_snippet_1
+
+LANGUAGE: bash
+CODE:
+```
+go run github.com/zitadel/oidc/v3/example/server/dynamic
+```
+
+--------------------------------
+
+TITLE: Zitadel OIDC User Data Example
+DESCRIPTION: Example JSON structure for defining user data and credentials for the Zitadel OIDC server.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/README.md#_snippet_4
+
+LANGUAGE: json
+CODE:
+```
+{
+  "id2": {
+    "ID": "id2",
+    "Username": "test-user2",
+    "Password": "verysecure",
+    "FirstName": "Test",
+    "LastName": "User2",
+    "Email": "test-user2@zitadel.ch",
+    "EmailVerified": true,
+    "Phone": "",
+    "PhoneVerified": false,
+    "PreferredLanguage": "DE",
+    "IsAdmin": false
+  }
+}
+```
+
+--------------------------------
+
+TITLE: Start Web Client with Dynamic Issuer
+DESCRIPTION: Starts the OIDC web client, configured to use a dynamic OpenID Provider. Requires updating the hosts file to resolve the dynamic issuer hostname.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/README.md#_snippet_2
+
+LANGUAGE: bash
+CODE:
+```
+# Note: Usernames are suffixed with the hostname (test-user@localhost or test-user@oidc.local)
+# Ensure 'oidc.local' is added to your hosts file pointing to 127.0.0.1
+CLIENT_ID=web CLIENT_SECRET=secret ISSUER=http://oidc.local:9998/ SCOPES="openid profile" PORT=9999 go run github.com/zitadel/oidc/v3/example/client/app
+```
+
+--------------------------------
+
+TITLE: Zitadel OIDC v2 to v3 Migration Script
+DESCRIPTION: This bash script utilizes `go get` to update the OIDC package and `find` with `sed` to perform multiple find-and-replace operations across all `.go` files in a project. It targets specific patterns related to package versions, function signatures, and type definitions to facilitate the migration from OIDC v2 to v3.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_30
+
+LANGUAGE: bash
+CODE:
+```
+go get -u github.com/zitadel/oidc/v3
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/github\.com\/zitadel\/oidc\/v2/github.com\/zitadel\/oidc\/v3/g' \
+    -e 's/gopkg.in\/square\/go-jose\.v2/github.com\/go-jose\/go-jose\/v3/g' \
+    -e 's/\bAuthRequestError(w, r, authReq, err, authorizer.Encoder())/AuthRequestError(w, r, authReq, err, authorizer)/g' \
+    -e 's/\bop\.AccessTokenVerifier\b/*op.AccessTokenVerifier/g' \
+    -e 's/\bop\.JWTProfileVerifier\b/*op.JWTProfileVerifier/g' \
+    -e 's/\bop\.IDTokenHintVerifier\b/*op.IDTokenHintVerifier/g' \
+    -e 's/AuthorizationEndpoint() Endpoint/AuthorizationEndpoint() *Endpoint/g' \
+    -e 's/TokenEndpoint() Endpoint/TokenEndpoint() *Endpoint/g' \
+    -e 's/IntrospectionEndpoint() Endpoint/IntrospectionEndpoint() *Endpoint/g' \
+    -e 's/UserinfoEndpoint() Endpoint/UserinfoEndpoint() *Endpoint/g' \
+    -e 's/RevocationEndpoint() Endpoint/RevocationEndpoint() *Endpoint/g' \
+    -e 's/EndSessionEndpoint() Endpoint/EndSessionEndpoint() *Endpoint/g' \
+    -e 's/KeysEndpoint() Endpoint/KeysEndpoint() *Endpoint/g' \
+    -e 's/DeviceAuthorizationEndpoint() Endpoint/DeviceAuthorizationEndpoint() *Endpoint/g' \
+    -e 's/op\.CreateDiscoveryConfig(/op.CreateDiscoveryConfig(context.TODO(), /g' \
+    -e 's/op\.AuthorizeCodeChallenge(tokenReq/op.AuthorizeCodeChallenge(tokenReq.CodeVerifier/g' \
+    -e 's/client\.Discover(/client.Discover(context.TODO(), /g' \
+    -e 's/client\.CallTokenEndpoint(/client.CallTokenEndpoint(context.TODO(), /g' \
+    -e 's/client\.CallEndSessionEndpoint(/client.CallEndSessionEndpoint(context.TODO(), /g' \
+    -e 's/client\.CallRevokeEndpoint(/client.CallRevokeEndpoint(context.TODO(), /g' \
+    -e 's/client\.CallTokenExchangeEndpoint(/client.CallTokenExchangeEndpoint(context.TODO(), /g' \
+    -e 's/client\.CallDeviceAuthorizationEndpoint(/client.CallDeviceAuthorizationEndpoint(context.TODO(), /g' \
+    -e 's/client\.JWTProfileExchange(/client.JWTProfileExchange(context.TODO(), /g' \
+    -e 's/profile\.NewJWTProfileTokenSource(/profile.NewJWTProfileTokenSource(context.TODO(), /g' \
+    -e 's/profile\.NewJWTProfileTokenSourceFromKeyFileData(/profile.NewJWTProfileTokenSourceFromKeyFileData(context.TODO(), /g' \
+    -e 's/profile\.NewJWTProfileTokenSourceFromKeyFile(/profile.NewJWTProfileTokenSourceFromKeyFile(context.TODO(), /g' \
+    -e 's/rp\.NewRelyingPartyOIDC(/rp.NewRelyingPartyOIDC(context.TODO(), /g' \
+    -e 's/rp\.EndSession(/rp.EndSession(context.TODO(), /g' \
+    -e 's/rp\.RevokeToken(/rp.RevokeToken(context.TODO(), /g' \
+    -e 's/rp\.DeviceAuthorization(/rp.DeviceAuthorization(context.TODO(), /g' \
+    -e 's/rp\.RefreshAccessToken(/rp.RefreshTokens[*oidc.IDTokenClaims](context.TODO(), /g' \
+    -e 's/rp\.Userinfo(/rp.Userinfo[*oidc.UserInfo](context.TODO(), /g' \
+    -e 's/\brp\.IDTokenVerifier\b/*rp.IDTokenVerifier/g' \
+    -e 's/rs\.NewResourceServerClientCredentials(/rs.NewResourceServerClientCredentials(context.TODO(), /g' \
+    -e 's/rs\.NewResourceServerJWTProfile(/rs.NewResourceServerJWTProfile(context.TODO(), /g' \
+    -e 's/rs\.Introspect(/rs.Introspect[*oidc.IntrospectionResponse](/g' \
+    -e 's/tokenexchange\.NewTokenExchanger(/tokenexchange.NewTokenExchanger(context.TODO(), /g' \
+    -e 's/tokenexchange\.NewTokenExchangerClientCredentials(/tokenexchange.NewTokenExchangerClientCredentials(context.TODO(), /g' \
+    -e 's/tokenexchange\.ExchangeToken(/tokenexchange.ExchangeToken(context.TODO(), /g'
+go mod tidy
+```
+
+--------------------------------
+
+TITLE: OP Package Logger Integration
+DESCRIPTION: This Go code snippet illustrates the import path for the OP package in v3. It also describes the integration of the `log/slog` package for logging, the `WithLogger` option for configuring the `OpenIDProvider`, and the optional `LogAuthRequest` interface for custom logging of authentication requests.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_6
+
+LANGUAGE: go
+CODE:
+```
+import "github.com/zitadel/oidc/v3/pkg/op"
+
+// Example of configuring the logger:
+// provider := op.NewProvider(..., op.WithLogger(myLogger))
+
+// Example of implementing LogAuthRequest for custom logging:
+// type MyAuthRequest struct { ... }
+// func (r *MyAuthRequest) LogValue() []slog.Attr { ... }
+```
+
+--------------------------------
+
+TITLE: Zitadel OIDC Supported Go Versions
+DESCRIPTION: Compatibility matrix for Go versions supported by the Zitadel OIDC project. Indicates supported and building versions.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/README.md#_snippet_6
+
+LANGUAGE: APIDOC
+CODE:
+```
+Version | Supported
+<1.23   | :x:
+1.23    | :white_check_mark:
+1.24    | :white_check_mark:
+```
+
+--------------------------------
+
+TITLE: Zitadel OIDC Server Configuration
+DESCRIPTION: Environment variables for configuring the Zitadel OIDC server. These variables control the listening port, allowed redirect URIs, and the path to a user data file.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/README.md#_snippet_3
+
+LANGUAGE: APIDOC
+CODE:
+```
+PORT:
+  Format: Number between 1 and 65535
+  Description: OIDC listen port
+
+REDIRECT_URI:
+  Format: Comma-separated URIs
+  Description: List of allowed redirect URIs
+
+USERS_FILE:
+  Format: Path to json in local filesystem
+  Description: Users with their data and credentials
+```
+
+--------------------------------
+
+TITLE: Zitadel OIDC Supported Features
+DESCRIPTION: Overview of OpenID Connect features supported by Zitadel, indicating whether they are supported for Relying Party and OpenID Provider roles, along with links to relevant specifications.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/README.md#_snippet_5
+
+LANGUAGE: APIDOC
+CODE:
+```
+Code Flow:
+  Relying party: yes
+  OpenID Provider: yes
+  Specification: OpenID Connect Core 1.0, Section 3.1
+
+Implicit Flow:
+  Relying party: no
+  OpenID Provider: yes
+  Specification: OpenID Connect Core 1.0, Section 3.2
+
+Hybrid Flow:
+  Relying party: no
+  OpenID Provider: not yet
+  Specification: OpenID Connect Core 1.0, Section 3.3
+
+Client Credentials:
+  Relying party: yes
+  OpenID Provider: yes
+  Specification: OpenID Connect Core 1.0, Section 9
+
+Refresh Token:
+  Relying party: yes
+  OpenID Provider: yes
+  Specification: OpenID Connect Core 1.0, Section 12
+
+Discovery:
+  Relying party: yes
+  OpenID Provider: yes
+  Specification: OpenID Connect Discovery 1.0
+
+JWT Profile:
+  Relying party: yes
+  OpenID Provider: yes
+  Specification: RFC 7523
+
+PKCE:
+  Relying party: yes
+  OpenID Provider: yes
+  Specification: RFC 7636
+
+Token Exchange:
+  Relying party: yes
+  OpenID Provider: yes
+  Specification: RFC 8693
+
+Device Authorization:
+  Relying party: yes
+  OpenID Provider: yes
+  Specification: RFC 8628
+
+mTLS:
+  Relying party: not yet
+  OpenID Provider: not yet
+  Specification: RFC 8705
+
+Back-Channel Logout:
+  Relying party: not yet
+  OpenID Provider: yes
+  Specification: OpenID Connect Back-Channel Logout 1.0
+```
+
+--------------------------------
+
+TITLE: Add Context and Generic Type to Userinfo
+DESCRIPTION: This script modifies Go code to include `context.TODO()` as the first argument to `rp.Userinfo` and specifies `*oidc.UserInfo` as the generic type argument for the user info object.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_23
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/rp.Userinfo(/rp.Userinfo[*oidc.UserInfo](context.TODO(), /g'
+```
+
+--------------------------------
+
+TITLE: Confirming Device Authorization Template - Go HTML Template
+DESCRIPTION: This Go HTML template, named 'confirm_device', is responsible for rendering the user interface during the device authorization flow. It dynamically displays the authenticated user's username, the client ID requesting authorization, and the list of requested OIDC scopes. The template includes 'Allow' and 'Deny' buttons, enabling the user to make a decision on granting access. The {{.Username}}, {{.ClientID}}, and {{.Scopes}} are placeholders for data passed to the template.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/example/server/exampleop/templates/confirm_device.html#_snippet_0
+
+LANGUAGE: Go HTML Template
+CODE:
+```
+{{ define "confirm_device" -}}  Confirm device authorization .green{ background-color: green } .red{ background-color: red }
+
+Welcome back {{.Username}}!
+===========================
+
+You are about to grant device {{.ClientID}} access to the following scopes: {{.Scopes}}.
+
+Allow Deny {{- end }}
+```
+
+--------------------------------
+
+TITLE: Add Context to Resource Server Constructors
+DESCRIPTION: This script updates the `NewResourceServerClientCredentials` and `NewResourceServerJWTProfile` functions in the `client/rs` package to include `context.TODO()` as their first argument.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_25
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/rs.NewResourceServerClientCredentials(/rs.NewResourceServerClientCredentials(context.TODO(), /g' \
+    -e 's/rs.NewResourceServerJWTProfile(/rs.NewResourceServerJWTProfile(context.TODO(), /g'
+```
+
+--------------------------------
+
+TITLE: APIDOC: Zitadel OIDC client/rp Discover Removal
+DESCRIPTION: The `Discover` function in the `client/rp` package has been removed. Developers should now use `client.Discover` instead.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_18
+
+LANGUAGE: APIDOC
+CODE:
+```
+client/rp.Discover:
+  - Function removed.
+  - Use `client.Discover` instead.
+```
+
+--------------------------------
+
+TITLE: Semantic Release Commit Types
+DESCRIPTION: Defines the commit message conventions for semantic release, categorizing changes into features, fixes, and documentation updates.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/CONTRIBUTING.md#_snippet_0
+
+LANGUAGE: markdown
+CODE:
+```
+feat: New Feature
+fix: Bug Fix
+docs: Documentation
+```
+
+--------------------------------
+
+TITLE: Upgrade OIDC Module and Replace Imports (V2 to V3)
+DESCRIPTION: This snippet demonstrates the initial steps for upgrading the OIDC module from v2 to v3. It involves fetching the latest v3 module, replacing old import paths in Go files using sed, and tidying the module dependencies.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_0
+
+LANGUAGE: bash
+CODE:
+```
+go get -u github.com/zitadel/oidc/v3
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/github\.com\/zitadel\/oidc\/v2/github.com\/zitadel\/oidc\/v3/g'
+go mod tidy
+```
+
+--------------------------------
+
+TITLE: APIDOC: Zitadel OIDC client Package Context Addition
+DESCRIPTION: All client calls within the `client` package now require a context as the first argument. This includes functions like `Discover`, `CallTokenEndpoint`, etc.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_17
+
+LANGUAGE: APIDOC
+CODE:
+```
+client Package Calls:
+  - All client calls now take a context as the first argument.
+  - Affected functions include:
+    - `Discover`
+    - `CallTokenEndpoint`
+    - `CallEndSessionEndpoint`
+    - `CallRevokeEndpoint`
+    - `CallTokenExchangeEndpoint`
+    - `CallDeviceAuthorizationEndpoint`
+    - `JWTProfileExchange`
+```
+
+--------------------------------
+
+TITLE: Add Context to Relying Party Functions
+DESCRIPTION: This script applies a find and replace operation to Go files to add `context.TODO()` as the first argument to several relying party functions, ensuring they now accept a context.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_21
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/rp.NewRelyingPartyOIDC(/rp.NewRelyingPartyOIDC(context.TODO(), /g' \
+    -e 's/rp.EndSession(/rp.EndSession(context.TODO(), /g' \
+    -e 's/rp.RevokeToken(/rp.RevokeToken(context.TODO(), /g' \
+    -e 's/rp.DeviceAuthorization(/rp.DeviceAuthorization(context.TODO(), /g'
+```
+
+--------------------------------
+
+TITLE: APIDOC: Zitadel OIDC client keyFile Export
+DESCRIPTION: The `keyFile` struct type is now exported as `KeyFile` and is returned by `ConfigFromKeyFile` and `ConfigFromKeyFileData`. No changes are required for callers.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_19
+
+LANGUAGE: APIDOC
+CODE:
+```
+client keyFile Type:
+  - `keyFile` struct is now exported as `KeyFile`.
+  - Returned by `ConfigFromKeyFile` and `ConfigFromKeyFileData`.
+  - No caller-side changes needed.
+```
+
+--------------------------------
+
+TITLE: APIDOC: Zitadel OIDC client.JWTProfileTokenSource Context
+DESCRIPTION: Details that `NewJWTProfileTokenSource`, `NewJWTProfileTokenSourceFromKeyFile`, and `NewJWTProfileTokenSourceFromKeyFileData` now accept a context as the first argument, used for discovery requests.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_16
+
+LANGUAGE: APIDOC
+CODE:
+```
+client/profile.NewJWTProfileTokenSource:
+  - Now takes a context as the first argument.
+  - Related functions `NewJWTProfileTokenSourceFromKeyFile` and `NewJWTProfileTokenSourceFromKeyFileData` also updated.
+  - Context is used for the Discovery request.
+```
+
+--------------------------------
+
+TITLE: APIDOC: Zitadel OIDC DeviceAuthorizationStorage Methods Dropped
+DESCRIPTION: Lists the methods removed from `DeviceAuthorizationStorage`: `GetDeviceAuthorizationByUserCode`, `CompleteDeviceAuthorization`, and `DenyDeviceAuthorization`. These were deemed unnecessary from a library perspective.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_15
+
+LANGUAGE: APIDOC
+CODE:
+```
+DeviceAuthorizationStorage:
+  - Dropped methods:
+    - `GetDeviceAuthorizationByUserCode`
+    - `CompleteDeviceAuthorization`
+    - `DenyDeviceAuthorization`
+  - Implementations should handle these calls as needed.
+```
+
+--------------------------------
+
+TITLE: Update go-jose Package Import
+DESCRIPTION: This command updates the import path for the go-jose package from v2 to v3, reflecting the change from `gopkg.in/square/go-jose.v2` to `github.com/go-jose/go-jose/v3`. It then tidies the Go module dependencies.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_1
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/gopkg.in\/square\/go-jose\.v2/github.com\/go-jose\/go-jose\/v3/g'
+go mod tidy
+```
+
+--------------------------------
+
+TITLE: Add Context to CreateDiscoveryConfig
+DESCRIPTION: This command injects `context.TODO()` into calls to `op.CreateDiscoveryConfig` to accommodate the new context argument. It also updates the issuer retrieval mechanism.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_8
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/op\.CreateDiscoveryConfig(/op.CreateDiscoveryConfig(context.TODO(), /g'
+```
+
+--------------------------------
+
+TITLE: APIDOC: Zitadel OIDC client/profile TokenSource Interface
+DESCRIPTION: Introduces a new `TokenSource` interface in `client/profile` that complements `oauth2.TokenSource` by adding a `TokenCtx` method for explicit context passing.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_20
+
+LANGUAGE: APIDOC
+CODE:
+```
+client/profile TokenSource Interface:
+  - New interface `TokenSource` defined.
+  - Complements `oauth2.TokenSource` with a `TokenCtx` method.
+  - Allows explicit context addition on each call.
+```
+
+--------------------------------
+
+TITLE: Add Context to Token Exchanger Functions
+DESCRIPTION: This script updates the `NewTokenExchanger`, `NewTokenExchangerClientCredentials`, and `ExchangeToken` functions in the `client/tokenexchange` package to accept `context.TODO()` as their first argument.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_27
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/tokenexchange.NewTokenExchanger(/tokenexchange.NewTokenExchanger(context.TODO(), /g' \
+    -e 's/tokenexchange.NewTokenExchangerClientCredentials(/tokenexchange.NewTokenExchangerClientCredentials(context.TODO(), /g' \
+    -e 's/tokenexchange.ExchangeToken(/tokenexchange.ExchangeToken(context.TODO(), /g'
+```
+
+--------------------------------
+
+TITLE: Add Context to Client Calls
+DESCRIPTION: This script adds `context.TODO()` as the first argument to various client functions, such as `Discover`, `CallTokenEndpoint`, and others, to incorporate the new context parameter.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_10
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/client\.Discover(/client.Discover(context.TODO(), /g' \
+    -e 's/client\.CallTokenEndpoint(/client.CallTokenEndpoint(context.TODO(), /g' \
+    -e 's/client\.CallEndSessionEndpoint(/client.CallEndSessionEndpoint(context.TODO(), /g' \
+    -e 's/client\.CallRevokeEndpoint(/client.CallRevokeEndpoint(context.TODO(), /g' \
+    -e 's/client\.CallTokenExchangeEndpoint(/client.CallTokenExchangeEndpoint(context.TODO(), /g' \
+    -e 's/client\.CallDeviceAuthorizationEndpoint(/client.CallDeviceAuthorizationEndpoint(context.TODO(), /g' \
+    -e 's/client\.JWTProfileExchange(/client.JWTProfileExchange(context.TODO(), /g'
+```
+
+--------------------------------
+
+TITLE: Update Endpoint Configuration Signatures
+DESCRIPTION: This script updates Go source files to change endpoint method signatures from returning `Endpoint` to `*Endpoint`. This is relevant for custom `Configuration` interface implementations.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_7
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/AuthorizationEndpoint() Endpoint/AuthorizationEndpoint() *Endpoint/g' \
+    -e 's/TokenEndpoint() Endpoint/TokenEndpoint() *Endpoint/g' \
+    -e 's/IntrospectionEndpoint() Endpoint/IntrospectionEndpoint() *Endpoint/g' \
+    -e 's/UserinfoEndpoint() Endpoint/UserinfoEndpoint() *Endpoint/g' \
+    -e 's/RevocationEndpoint() Endpoint/RevocationEndpoint() *Endpoint/g' \
+    -e 's/EndSessionEndpoint() Endpoint/EndSessionEndpoint() *Endpoint/g' \
+    -e 's/KeysEndpoint() Endpoint/KeysEndpoint() *Endpoint/g' \
+    -e 's/DeviceAuthorizationEndpoint() Endpoint/DeviceAuthorizationEndpoint() *Endpoint/g'
+```
+
+--------------------------------
+
+TITLE: Add Context to JWT Profile Token Source Functions
+DESCRIPTION: This script updates calls to JWT profile token source functions (`NewJWTProfileTokenSource`, `NewJWTProfileTokenSourceFromKeyFile`, `NewJWTProfileTokenSourceFromKeyFileData`) to include `context.TODO()` as the initial argument, used for discovery requests.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_11
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/profile\.NewJWTProfileTokenSource(/profile.NewJWTProfileTokenSource(context.TODO(), /g' \
+    -e 's/profile\.NewJWTProfileTokenSourceFromKeyFileData(/profile.NewJWTProfileTokenSourceFromKeyFileData(context.TODO(), /g' \
+    -e 's/profile\.NewJWTProfileTokenSourceFromKeyFile(/profile.NewJWTProfileTokenSourceFromKeyFile(context.TODO(), /g'
+```
+
+--------------------------------
+
+TITLE: APIDOC: Zitadel OIDC Endpoint Configuration
+DESCRIPTION: Details changes in how `Endpoint` configurations are handled. Endpoints returned from `Configuration` interface methods are now pointers (`*Endpoint`). This affects custom implementations of the `Configuration` interface.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_12
+
+LANGUAGE: APIDOC
+CODE:
+```
+Endpoint Configuration:
+  - Endpoints returned from Configuration interface methods are now pointers (*Endpoint).
+  - Affects custom implementations of the Configuration interface.
+  - Example signature change: `AuthorizationEndpoint() Endpoint` to `AuthorizationEndpoint() *Endpoint`.
+```
+
+--------------------------------
+
+TITLE: Add Generic Type Argument to Introspect
+DESCRIPTION: No description
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_26
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/rs.Introspect(/rs.Introspect[*oidc.IntrospectionResponse](/g'
+```
+
+--------------------------------
+
+TITLE: Adapt AuthRequestError Signature
+DESCRIPTION: This `sed` command updates the `AuthRequestError` function calls to accommodate the new signature, which now includes the complete `Authorizer` as the final argument instead of just the encoder. This change facilitates the integration of the new logging mechanism.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_2
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/\bAuthRequestError(w, r, authReq, err, authorizer.Encoder())/AuthRequestError(w, r, authReq, err, authorizer)/g'
+```
+
+--------------------------------
+
+TITLE: APIDOC: Zitadel OIDC CreateRouter Change
+DESCRIPTION: Highlights that `CreateRouter` now returns a `chi.Router` instead of `*mux.Router`. This change primarily impacts direct calls to this function by package consumers.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_14
+
+LANGUAGE: APIDOC
+CODE:
+```
+CreateRouter:
+  - Now returns a `chi.Router` instead of `*mux.Router`.
+  - Primarily affects direct calls by package consumers, not typical provider construction.
+```
+
+--------------------------------
+
+TITLE: Update RefreshAccessToken to RefreshTokens
+DESCRIPTION: This bash script updates calls from `rp.RefreshAccessToken` to the new `rp.RefreshTokens` function, including the addition of a context and the generic type argument `*oidc.IDTokenClaims`.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_22
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/rp.RefreshAccessToken(/rp.RefreshTokens[*oidc.IDTokenClaims](context.TODO(), /g'
+```
+
+--------------------------------
+
+TITLE: SpaceDelimitedArray Encode Renamed to String
+DESCRIPTION: The `Encode()` function of the `SpaceDelimitedArray` type in the `oidc` package has been renamed to `String()` to implement the `fmt.Stringer` interface. Consumers using the `Encode` method will need to update their code.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_28
+
+LANGUAGE: go
+CODE:
+```
+package oidc
+
+type SpaceDelimitedArray []string
+
+// String implements the fmt.Stringer interface.
+func (a SpaceDelimitedArray) String() string {
+	return strings.Join(a, " ")
+}
+```
+
+--------------------------------
+
+TITLE: APIDOC: Zitadel OIDC ParseRequestObject
+DESCRIPTION: Explains the change in `ParseRequestObject`. It no longer returns `*oidc.AuthRequest` because it operates on the passed pointer. Callers can now directly use the original `*oidc.AuthRequest`.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_13
+
+LANGUAGE: APIDOC
+CODE:
+```
+ParseRequestObject:
+  - No longer returns `*oidc.AuthRequest` as it operates on the passed `authReq` pointer.
+  - Callers should use the original `*oidc.AuthRequest` directly.
+```
+
+--------------------------------
+
+TITLE: Update AuthorizeCodeChallenge Signature
+DESCRIPTION: This script modifies calls to `op.AuthorizeCodeChallenge` to pass only the `CodeVerifier` instead of the entire `*oidc.AccessTokenRequest`, reflecting a change in the function's signature.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_9
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/op\.AuthorizeCodeChallenge(tokenReq/op.AuthorizeCodeChallenge(tokenReq.CodeVerifier/g'
+```
+
+--------------------------------
+
+TITLE: Update AccessTokenVerifier Type
+DESCRIPTION: This `sed` command updates declarations referencing the `AccessTokenVerifier` from an interface type to a pointer to a struct type (`*op.AccessTokenVerifier`). This change reflects the refactoring of `AccessTokenVerifier` into a struct.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_3
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/\bop\.AccessTokenVerifier\b/*op.AccessTokenVerifier/g'
+```
+
+--------------------------------
+
+TITLE: Verifier Interface Changed to Struct
+DESCRIPTION: The `Verifier` in the `oidc` package has been changed from an interface to a struct type. This change affects its usage in `op` and `rp` packages, requiring adjustments from `rp.Verifier` to `*rp.Verifier` in declarations.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_29
+
+LANGUAGE: go
+CODE:
+```
+package op
+
+import "github.com/zitadel/oidc/v3/pkg/oidc"
+
+// Verifier is an alias for the struct type.
+type Verifier = oidc.Verifier
+
+// NewVerifier creates a new Verifier.
+func NewVerifier(opts ...oidc.VerifierOption) *Verifier {
+	return &oidc.Verifier{}
+}
+```
+
+--------------------------------
+
+TITLE: Update IDTokenVerifier to Struct Type
+DESCRIPTION: This bash script updates the type declarations for `rp.IDTokenVerifier` to `*rp.IDTokenVerifier` to reflect its change from an interface to a struct type.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_24
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/\brp.IDTokenVerifier\b/*rp.IDTokenVerifier/g'
+```
+
+--------------------------------
+
+TITLE: Update JWTProfileVerifier Type
+DESCRIPTION: This `sed` command updates declarations referencing the `JWTProfileVerifier` from an interface type to a pointer to a struct type (`*op.JWTProfileVerifier`). This change reflects the refactoring of `JWTProfileVerifier` into a struct.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_4
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/\bop\.JWTProfileVerifier\b/*op.JWTProfileVerifier/g'
+```
+
+--------------------------------
+
+TITLE: Update IDTokenHintVerifier Type
+DESCRIPTION: This `sed` command updates declarations referencing the `IDTokenHintVerifier` from an interface type to a pointer to a struct type (`*op.IDTokenHintVerifier`). This change reflects the refactoring of `IDTokenHintVerifier` into a struct.
+
+SOURCE: https://github.com/zitadel/oidc/blob/main/UPGRADING.md#_snippet_5
+
+LANGUAGE: bash
+CODE:
+```
+find . -type f -name '*.go' | xargs sed -i \
+    -e 's/\bop\.IDTokenHintVerifier\b/*op.IDTokenHintVerifier/g'
+```

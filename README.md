@@ -47,3 +47,11 @@ Notes & tips
 - The app will run migrations from `./database/migrations` at startup. Back up your DB before running in production.
 - For CI, ensure `templ generate` is run or that the templ CLI is available.
 
+
+# Available enviroment variables
+
+To first set the admin user for access to the administration dashboard. 
+
+you can run the server with the `ADMIN_USER_NSEC` env variable set with a valid nsec. This nsec will be registered as a
+user with admin privilages. Once is registered you don't have to run the env variable again.
+

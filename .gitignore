@@ -1,7 +1,5 @@
 # Binaries
-# Remove Tailwind build config and npm artifacts since we use CDN
-tailwind.config.js
-package.json
+ Remove Tailwind build config and npm artifacts since we use CDN
 node_modules/
 npm-debug.log
 
@@ -59,3 +57,5 @@ Thumbs.db
 ehthumbs.db
 # Generated templ files
 *_templ.go
+
+nostr-oicd

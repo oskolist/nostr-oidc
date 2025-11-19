@@ -1,0 +1,48 @@
+package templates
+
+var darkModeScript = templ.NewOnceHandle()
+
+templ Layout(title string, headContent templ.Component) {
+	<html class="scroll-smooth">
+		<head>
+			<title>{ title }</title>
+			if headContent != nil {
+				@headContent
+			}
+			@darkModeScript.Once() {
+				<script>
+					// Ensure initial theme matches user preference before rendering
+					(function () {
+						const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+						const storedTheme = localStorage.getItem('theme');
+
+						if (storedTheme === 'dark' || (storedTheme === null && prefersDark)) {
+							document.documentElement.classList.add('dark');
+						} else {
+							document.documentElement.classList.remove('dark');
+						}
+					})();
+
+					window.toggleTheme = function () {
+						document.documentElement.classList.toggle('dark');
+						const isDark = document.documentElement.classList.contains('dark');
+						localStorage.setItem('theme', isDark ? 'dark' : 'light');
+
+						// Force browser to recalculate styles after class change
+						// This is a common trick to ensure CSS frameworks react to dynamic class toggles
+						void document.documentElement.offsetHeight; 
+					};
+				</script>
+			}
+			<script src="/static/dist/app.js" defer></script>
+			<link rel="stylesheet" href="/static/dist/tailwind.css"/>
+		</head>
+		<body hx-ext="preload" class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+			<div hx-ext="remove-me" id="notifications"></div>
+			<div id="body-children">
+				{ children... }
+			</div>
+			<div id="modals"></div>
+		</body>
+	</html>
+}

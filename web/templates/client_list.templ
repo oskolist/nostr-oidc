@@ -1,0 +1,14 @@
+package templates
+
+templ ClientList(clients []ClientFormData) {
+	<div class="flex flex-col gap-4 dark:text-gray-300">
+		if len(clients) == 0 {
+			<div>
+				No clients available
+			</div>
+		}
+		for _, client := range clients {
+			@ClientRow(client)
+		}
+	</div>
+}

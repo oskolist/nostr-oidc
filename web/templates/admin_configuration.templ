@@ -1,0 +1,109 @@
+package templates
+
+import (
+	"fmt"
+	"github.com/lescuer97/nostr-oicd/storage"
+)
+
+templ AdminConfigurationPage() {
+	@Layout("Configuration", nil) {
+		<div
+			class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4 sm:px-6 lg:px-8"
+		>
+			<div class="max-w-6xl mx-auto dark:text-white">
+				<!-- Header -->
+				<div class="mb-8">
+					<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Global Configuration</h1>
+					<p class="mt-2 text-lg text-gray-600 dark:text-gray-300">Manage application-wide settings and parameters</p>
+				</div>
+				<div hx-get="/admin/configuration_form" hx-trigger="load" hx-swap="innerHTML" hx-target="this"></div>
+				<div class="mt-8 mb-8">
+					<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Admin Users</h1>
+				</div>
+				<div hx-get="/admin/admin_users" hx-trigger="load" hx-swap="innerHTML" hx-target="this"></div>
+			</div>
+		</div>
+	}
+}
+
+templ AdminConfigurationForm(config storage.Configuration, nsecRegistered bool) {
+	<div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg form">
+		<div class="px-4 py-5 sm:p-6">
+			<form hx-put="/admin/configuration" hx-target="this" hx-swap="none">
+				<div class="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-8">
+					{{ maxClientsStr := fmt.Sprintf("%d", config.MaxClients) }}
+					<div>
+						@TextInput(
+							"max_clients",
+							"Max Clients",
+							"",
+							&maxClientsStr,
+							true,
+							"",
+							false,
+							nil,
+						)
+					</div>
+					{{ maxUsersStr := fmt.Sprintf("%d", config.MaxUsers) }}
+					<div>
+						@TextInput(
+							"max_users",
+							"Max Users",
+							"",
+							&maxUsersStr,
+							true,
+							"",
+							false,
+							nil,
+						)
+					</div>
+					{{ registrationTypeStr := string(config.RegistrationType) }}
+					<div>
+						@SelectInput(
+							"registration_type",
+							"Registration Type",
+							[]SelectOption{
+								{Value: "open", Label: "Open"},
+								{Value: "manual", Label: "Manual"},
+							},
+							&registrationTypeStr,
+							true,
+							"",
+						)
+					</div>
+					<div>
+						{{ passwordType := "password" }}
+						{{
+							label := "Nsec (Optional)"
+							if nsecRegistered {
+								label += ". This value is set but it doesn't show for security reasons"
+							}
+						}}
+						@TextInput(
+							"nsec",
+							label,
+							"",
+							nil,
+							false,
+							"",
+							false,
+							&passwordType,
+						)
+						<small>
+							This nsec is used to query the vertex WOT service. It will help determine if a
+							user is "real".
+						</small>
+					</div>
+					<div class="sm:col-span-2">
+						<button
+							type="submit"
+							class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+						>
+							Save Configuration
+						</button>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+}
