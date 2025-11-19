@@ -28,7 +28,7 @@ export function initLogin() {
       const signedEvent = await signNostrEvent(eventToSign);
       let loginUrl = "/login"
 
-      if (loginContainer.dataset.loginType) {
+      if (loginContainer.dataset.logintype === "device") {
         loginUrl = "/device/login"
       }
       const res = await fetch(new Request(loginUrl, {
@@ -41,18 +41,17 @@ export function initLogin() {
         return
       }
 
+      const text = await res.text();
       if (res.ok) {
         const targetHeader = res.headers.get("HX-RETARGET");
         if (targetHeader) {
           window.htmx.swap(`${targetHeader}`, text, { swapStyle: "innerHTML" });
           return
         }
-        const text = await res.text();
         window.htmx.swap(`#body-children`, text, { swapStyle: "innerHTML" });
       } else {
         const targetHeader = res.headers.get("HX-RETARGET");
         if (window.htmx && targetHeader) {
-          const text = await res.text();
           window.htmx.swap(`#${targetHeader}`, text, { swapStyle: "innerHTML" });
         }
       }

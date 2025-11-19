@@ -94,7 +94,7 @@ const userCodeCookieName = "user_code"
 
 type userCodeCookie struct {
 	UserCode string
-	UserName string
+	UserId string
 }
 
 func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +135,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 		redirectBack(w, r, err.Error())
 		return
 	}
-	_, err = schnorr.ParsePubKey(pbBytes)
+	pubkey, err := schnorr.ParsePubKey(pbBytes)
 	if err != nil {
 		slog.Error(
 			"schnorr.ParsePubKey(pbBytes)",
@@ -145,15 +145,16 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// err = d.storage.CheckUserNpub(pubkey)
-	// if err != nil {
-	// 	slog.Error(
-	// 		"d.storage.CheckUserNpub(pubkey)",
-	// 		slog.String("error", err.Error()),
-	// 	)
-	// 	redirectBack(w, r, err.Error())
-	// 	return
-	// }
+
+	user, err := d.storage.CheckUserNpub(pubkey)
+	if err != nil {
+		slog.Error(
+			"d.storage.CheckUserNpub(pubkey)",
+			slog.String("error", err.Error()),
+		)
+		redirectBack(w, r, err.Error())
+		return
+	}
 
 	state, err := d.storage.GetDeviceAuthorizationByUserCode(r.Context(), nostrEvent.Content)
 	if err != nil {
@@ -166,7 +167,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("\n state: %+v", state)
 
-	encoded, err := d.cookie.Encode(userCodeCookieName, userCodeCookie{nostrEvent.Content, nostrEvent.PubKey})
+	encoded, err := d.cookie.Encode(userCodeCookieName, userCodeCookie{UserCode: nostrEvent.Content, UserId: user.ID})
 	if err != nil {
 		slog.Error(
 			"d.cookie.Encode(userCodeCookieName, userCodeCookie{nostrEvent.Content, nostrEvent.PubKey})",
@@ -217,12 +218,10 @@ func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	action := r.Form.Get("action")
-	log.Printf("\n actions %+v", action)
-	log.Printf("\n data %+v", data)
 
 	switch action {
 	case "allowed":
-		err = d.storage.CompleteDeviceAuthorization(r.Context(), data.UserCode, data.UserName)
+		err = d.storage.CompleteDeviceAuthorization(r.Context(), data.UserCode, data.UserId)
 	case "denied":
 		err = d.storage.DenyDeviceAuthorization(r.Context(), data.UserCode)
 	default:

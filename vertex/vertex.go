@@ -60,6 +60,9 @@ type VertexResult struct {
 }
 
 func (v *VertexChecker) NpubHasEnoughReputation(ctx context.Context, npub *btcec.PublicKey) (bool, error) {
+	if v.relay == nil {
+		return false, fmt.Errorf("VERTEX Relay connection is not spinned up at the moment")
+	}
 	if !v.relay.IsConnected() {
 		err := v.relay.Connect(context.Background())
 		if err != nil {

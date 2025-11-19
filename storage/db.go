@@ -612,6 +612,8 @@ func (s *storageDB) AddToken(tx *sql.Tx, token *Token) error {
 		return fmt.Errorf("json.Marshal(token.Scopes): %w", err)
 	}
 
+	fmt.Printf("\n token: %+v \n", *token)
+
 	query := `
 		INSERT INTO tokens (id, application_id, subject, refresh_token_id, audience, expiration, scopes)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -1156,14 +1158,15 @@ func (s *storageDB) SaveConfig(tx *sql.Tx, config *Configuration) error {
 	}
 
 	query := `
-		INSERT INTO configuration (id, max_clients, max_users, last_updated, registration_type, nsec)
-		VALUES (1, ?, ?, ?, ?, ?)
+		INSERT INTO configuration (id, max_clients, max_users, last_updated, registration_type, nsec, encryption_key)
+		VALUES (1, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			max_clients = excluded.max_clients,
 			max_users = excluded.max_users,
 			last_updated = excluded.last_updated,
 			registration_type = excluded.registration_type,
-			nsec = excluded.nsec`
+			nsec = excluded.nsec,
+			encryption_key = excluded.encryption_key`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -1171,7 +1174,7 @@ func (s *storageDB) SaveConfig(tx *sql.Tx, config *Configuration) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(config.MaxClients, config.MaxUsers, config.LastUpdated, config.RegistrationType, config.Nsec)
+	_, err = stmt.Exec(config.MaxClients, config.MaxUsers, config.LastUpdated, config.RegistrationType, config.Nsec, config.EncryptionKey)
 	if err != nil {
 		return fmt.Errorf("stmt.Exec(SaveConfig): %w", err)
 	}
@@ -1184,7 +1187,7 @@ func (s *storageDB) GetConfig(tx *sql.Tx) (*Configuration, error) {
 		panic("tx cannot be nil")
 	}
 
-	query := `SELECT max_clients, max_users, last_updated, registration_type FROM configuration WHERE id = 1`
+	query := `SELECT max_clients, max_users, last_updated, registration_type, encryption_key FROM configuration WHERE id = 1`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -1209,7 +1212,7 @@ func (s *storageDB) GetConfigWithNsec(tx *sql.Tx) (*Configuration, error) {
 		panic("tx cannot be nil")
 	}
 
-	query := `SELECT max_clients, max_users, last_updated, registration_type, nsec FROM configuration WHERE id = 1`
+	query := `SELECT max_clients, max_users, last_updated, registration_type, nsec, encryption_key FROM configuration WHERE id = 1`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {

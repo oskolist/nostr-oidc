@@ -515,6 +515,7 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 	if !emptyNsecField {
 		vtx, err := vertex.NewVertexChecker(*inputConfig.Nsec)
 		if err != nil {
+			slog.Error("vertex.NewVertexChecker(*inputConfig.Nsec)", slog.String("error", err.Error()))
 			if errors.Is(err, vertex.ErrInvalidNsec) {
 				writeHtmlNotification(templates.NotifInfo{
 					Msg:  "You don't have a valid nsec",
@@ -522,7 +523,6 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 				}, r, w)
 				return
 			}
-			slog.Error("vertex.NewVertexChecker(*inputConfig.Nsec)", slog.String("error", err.Error()))
 			writeHtmlNotification(templates.NotifInfo{
 				Msg:  "Something went wrong while registering the user",
 				Type: notificationTypeError,
@@ -535,7 +535,7 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 
 	nsecRegistered, err := s.server.Storage.NsecIsRegistered(r.Context())
 	if err != nil {
-		slog.Error("failed to get configuration", slog.String("error", err.Error()))
+		slog.Error("failed to check if nsec is registered", slog.String("error", err.Error()))
 		// Default to an empty config if not found, to avoid nil pointer dereference
 		// In a real app, you might want to create a default config here if not found
 		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
@@ -550,8 +550,17 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	config, err := s.server.Storage.GetConfiguration(r.Context())
+	if err != nil {
+		slog.Error("failed to get configuration", slog.String("error", err.Error()))
+		// Default to an empty config if not found, to avoid nil pointer dereference
+		// In a real app, you might want to create a default config here if not found
+		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
+		return
+	}
 	// Update the LastUpdated field
 	inputConfig.LastUpdated = uint64(time.Now().Unix())
+	inputConfig.EncryptionKey = config.EncryptionKey
 
 	if err := s.server.Storage.UpdateConfiguration(r.Context(), &inputConfig); err != nil {
 		slog.Error("failed to update configuration", slog.String("error", err.Error()))

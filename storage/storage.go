@@ -290,6 +290,7 @@ func (s *Storage) accessToken(tx *sql.Tx, applicationID, refreshTokenID, subject
 		Scopes:         scopes,
 	}
 
+	fmt.Printf("\n token: \n %+v", token)
 	err := s.db.AddToken(tx, &token)
 	if err != nil {
 		return nil, fmt.Errorf("s.db.AddRefreshToken(tx, &token). %w", err)
@@ -379,7 +380,14 @@ func (s *Storage) CreateAccessAndRefreshTokens(ctx context.Context, request op.T
 
 	// generate tokens via token exchange flow if request is relevant
 	if teReq, ok := request.(op.TokenExchangeRequest); ok {
-		return s.exchangeRefreshToken(tx, teReq)
+		accessTokenID, newRefreshToken, expiration, err := s.exchangeRefreshToken(tx, teReq)
+		if err != nil {
+			return "", "", time.Time{}, err
+		}
+		if err := tx.Commit(); err != nil {
+			return "", "", time.Time{}, fmt.Errorf("tx.Commit(). %w", err)
+		}
+		return accessTokenID, newRefreshToken, expiration, nil
 	}
 
 	// get the information depending on the request type / implementation

@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lescuer97/nostr-oicd/storage"
 	"github.com/lescuer97/nostr-oicd/storage/database"
+	"github.com/lescuer97/nostr-oicd/utils"
 	"github.com/lescuer97/nostr-oicd/vertex"
 	"github.com/lescuer97/nostr-oicd/web"
 	"github.com/nbd-wtf/go-nostr/nip19"
@@ -129,15 +130,22 @@ func ensureConfiguration(ctx context.Context, store *storage.Storage) error {
 		return nil
 	}
 
-	// Configuration doesn't exist, create a default one
-	defaultConfig := &storage.Configuration{
-		RegistrationType: "manual",
-		MaxClients:       5,
-		MaxUsers:         1000,
-		LastUpdated:      uint64(time.Now().Unix()),
-	}
-
 	if errors.Is(err, sql.ErrNoRows) {
+		// Configuration doesn't exist, create a default one
+		defaultConfig := &storage.Configuration{
+			RegistrationType: "manual",
+			MaxClients:       5,
+			MaxUsers:         1000,
+			LastUpdated:      uint64(time.Now().Unix()),
+		}
+
+		// Generate a random encryption key
+		k, err := utils.GenerateRandomKey()
+		if err != nil {
+			return fmt.Errorf("failed to generate encryption key: %w", err)
+		}
+		defaultConfig.EncryptionKey = k
+
 		if err = store.AddConfiguration(ctx, defaultConfig); err != nil {
 			return fmt.Errorf("failed to create default configuration: %w", err)
 		}
@@ -149,7 +157,17 @@ func ensureConfiguration(ctx context.Context, store *storage.Storage) error {
 
 // ensures that the nsec for admin in the env variable is registered as an admin user
 func ensureAdminEnvNpubIsRegistedAsAdmin(env string, store *storage.Storage) error {
-	if len(env) == 0 {
+	user, err := store.GetAllAdminUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("store.GetAllAdminUsers(context.Background()). %w", err)
+	}
+	log.Printf("\n user: %+v", user)
+
+	if len(user) == 0 && len(env) == 0 {
+		return fmt.Errorf("\n No Admin users. You need to bootstrap an admin user with the  ADMIN_USER_NSEC enviroment variable.")
+
+	}
+	if len(user) > 0 || len(env) == 0 {
 		return nil
 	}
 
