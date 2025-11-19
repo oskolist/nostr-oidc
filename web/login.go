@@ -80,7 +80,19 @@ func (l *login) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("\n id: %+v\n ", id)
 
-	templates.Login(id, templates.CodeLogin, config.RegistrationType != "manual").Render(r.Context(), w)
+	authRequest, err := l.authenticate.AuthRequestByID(r.Context(), id)
+	if err != nil {
+		slog.Error("l.authenticate.AuthRequestByID(r.Context(), nostrEvent.Content)", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not validate loggin",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	fmt.Printf("\n authRequest: %+v\n ", authRequest)
+
+	templates.Login(id, templates.CodeLogin, config.RegistrationType != "manual", authRequest.GetScopes()).Render(r.Context(), w)
 }
 
 func (l *login) checkLoginHandler(w http.ResponseWriter, r *http.Request) {

@@ -7,7 +7,7 @@ const (
 	CodeLogin   LoginType = "code"
 )
 
-templ Login(nonce string, loginType LoginType, openSignup bool) {
+templ Login(nonce string, loginType LoginType, openSignup bool, scopes []string) {
 	@Layout("Login", nil) {
 		<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
 			<div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-md p-8">
@@ -15,6 +15,7 @@ templ Login(nonce string, loginType LoginType, openSignup bool) {
 					<h2 class="text-2xl font-semibold text-gray-800 dark:text-white">Welcome back</h2>
 					<p class="text-sm text-gray-500 dark:text-gray-400">Sign in with your Nostr key to continue</p>
 				</div>
+				@ScopeField(scopes)
 				<form data-logintype={ loginType } nonce={ nonce } id="loginContainer" class="space-y-4">
 					<div class="text-center">
 						<button

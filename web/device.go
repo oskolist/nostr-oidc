@@ -76,7 +76,18 @@ func (d *deviceLogin) userCodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	templates.Login(userCode, templates.DeviceLogin, config.RegistrationType != "manual").Render(r.Context(), w)
+	deviceAuth, err := d.storage.GetDeviceAuthorizationByUserCode(r.Context(), userCode)
+	if err != nil {
+
+		slog.Error("d.storage.GetDeviceAuthorizationByUserCode(r.Context(), userCode)", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not validate loggin",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	templates.Login(userCode, templates.DeviceLogin, config.RegistrationType != "manual", deviceAuth.Scopes).Render(r.Context(), w)
 }
 
 func redirectBack(w http.ResponseWriter, r *http.Request, prompt string) {
@@ -94,7 +105,7 @@ const userCodeCookieName = "user_code"
 
 type userCodeCookie struct {
 	UserCode string
-	UserId string
+	UserId   string
 }
 
 func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +155,6 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 		redirectBack(w, r, err.Error())
 		return
 	}
-
 
 	user, err := d.storage.CheckUserNpub(pubkey)
 	if err != nil {
