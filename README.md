@@ -13,6 +13,9 @@ party functionality.
 
 This service allows for open signup using Nostr WoT. The Vertex relay is used to avoid letting Bots or fake accounts in. 
 
+All secrets are stored securely in a keychain. The database only store fingerprints of the secrets so they can be
+queried later.
+
 ## How to run
 
 The first time you run the program you will need to run it with the `ADMIN_USER_NPUB` enviroment variable. The system
