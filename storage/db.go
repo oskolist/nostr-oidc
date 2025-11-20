@@ -1174,20 +1174,28 @@ func (s *storageDB) SaveConfig(tx *sql.Tx, config *Configuration) error {
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(config.MaxClients, config.MaxUsers, config.LastUpdated, config.RegistrationType, config.Nsec, config.EncryptionKey)
+	// Handle nsec as optional []byte - pass nil if nsec is empty
+	var nsecValue interface{}
+	if len(config.Nsec) > 0 {
+		nsecValue = config.Nsec
+	} else {
+		nsecValue = nil
+	}
+
+	_, err = stmt.Exec(config.MaxClients, config.MaxUsers, config.LastUpdated, config.RegistrationType, nsecValue, config.EncryptionKey)
 	if err != nil {
 		return fmt.Errorf("stmt.Exec(SaveConfig): %w", err)
 	}
 	return nil
 }
 
-// GetConfig retrieves the application configuration without the nsec field
+// GetConfig retrieves the application configuration, including the optional nsec field as a blob
 func (s *storageDB) GetConfig(tx *sql.Tx) (*Configuration, error) {
 	if tx == nil {
 		panic("tx cannot be nil")
 	}
 
-	query := `SELECT max_clients, max_users, last_updated, registration_type, encryption_key FROM configuration WHERE id = 1`
+	query := `SELECT max_clients, max_users, last_updated, registration_type, nsec, encryption_key FROM configuration WHERE id = 1`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -1198,34 +1206,9 @@ func (s *storageDB) GetConfig(tx *sql.Tx) (*Configuration, error) {
 	var config Configuration
 	row := stmt.QueryRow()
 
-	err = config.ScanRowWithoutNsec(row)
-	if err != nil {
-		return nil, fmt.Errorf("config.ScanRowWithoutNsec(GetConfig): %w", err)
-	}
-
-	return &config, nil
-}
-
-// GetConfigWithNsec retrieves the application configuration including the nsec field
-func (s *storageDB) GetConfigWithNsec(tx *sql.Tx) (*Configuration, error) {
-	if tx == nil {
-		panic("tx cannot be nil")
-	}
-
-	query := `SELECT max_clients, max_users, last_updated, registration_type, nsec, encryption_key FROM configuration WHERE id = 1`
-
-	stmt, err := tx.Prepare(query)
-	if err != nil {
-		return nil, fmt.Errorf("tx.Prepare(GetConfigWithNsec): %w", err)
-	}
-	defer stmt.Close()
-
-	var config Configuration
-	row := stmt.QueryRow()
-
 	err = config.ScanRow(row)
 	if err != nil {
-		return nil, fmt.Errorf("config.ScanRow(GetConfigWithNsec): %w", err)
+		return nil, fmt.Errorf("config.ScanRow(GetConfig): %w", err)
 	}
 
 	return &config, nil

@@ -62,7 +62,7 @@ func main() {
 		log.Fatalf("could no generate oicd client for dashboard: %v", err)
 	}
 
-	config, err := storage.GetConfigurationWithNsec(context.Background())
+	config, err := storage.GetConfiguration(context.Background())
 	if err != nil {
 		log.Fatalf("storage.GetConfigurationWithNsec(context.Background()). %v", err)
 	}

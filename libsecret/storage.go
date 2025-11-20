@@ -10,12 +10,14 @@ import (
 
 const Service = "nostr-oidc"
 
+const VertexNsec = "vertex-nsec"
+
 var (
 	ErrNotFound = errors.New("Could not found value in keystore")
 )
 
-func SetSecret(id []byte, secret []byte) error {
-	return keyring.Set(Service, hex.EncodeToString(id), hex.EncodeToString(secret))
+func SetSecret(id string, secret []byte) error {
+	return keyring.Set(Service, id, hex.EncodeToString(secret))
 }
 
 func GetSecret(id string) (string, error) {

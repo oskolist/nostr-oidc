@@ -319,30 +319,20 @@ type Configuration struct {
 	MaxUsers         uint64  `form:"max_users" validate:"gte=0"`
 	LastUpdated      uint64  `validate:"gte=0"`
 	RegistrationType string  `form:"registration_type" validate:"oneof=open manual"`
-	Nsec             *string `form:"nsec"`
+	Nsec             []byte  `form:"nsec"`
 	EncryptionKey    []byte  `validate:"len=32"`
 }
 
 func (c *Configuration) ScanRow(row interface{ Scan(...interface{}) error }) error {
-	var nsec sql.NullString
+	var nsec sql.Null[[]byte]
 	if err := row.Scan(&c.MaxClients, &c.MaxUsers, &c.LastUpdated, &c.RegistrationType, &nsec, &c.EncryptionKey); err != nil {
 		return err
 	}
 	if nsec.Valid {
-		value := nsec.String
-		c.Nsec = &value
+		c.Nsec = nsec.V
 	} else {
 		c.Nsec = nil
 	}
-	return nil
-}
-
-func (c *Configuration) ScanRowWithoutNsec(row interface{ Scan(...interface{}) error }) error {
-	if err := row.Scan(&c.MaxClients, &c.MaxUsers, &c.LastUpdated, &c.RegistrationType, &c.EncryptionKey); err != nil {
-		return err
-	}
-	// Ensure Nsec is nil when not queried
-	c.Nsec = nil
 	return nil
 }
 

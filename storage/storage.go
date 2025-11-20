@@ -8,8 +8,10 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
+	"reflect"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -523,7 +525,6 @@ func (s *Storage) RevokeToken(ctx context.Context, tokenIDOrToken string, userID
 	// First, try to find if this is an access token (by ID)
 	token, err := s.db.SearchTokenByID(tx, tokenIDOrToken)
 	if err == nil {
-		log.Printf("\n RevokeToken Token: %+v", token)
 		// We found an access token; now make sure it belongs to the right client and user
 		if token.ApplicationID != clientID {
 			return oidc.ErrInvalidClient().WithDescription("token was not issued for this client")
@@ -608,7 +609,6 @@ func (s *Storage) KeySet(ctx context.Context) ([]op.Key, error) {
 // GetClientByClientID implements the op.Storage interface
 // it will be called whenever information (type, redirect_uris, ...) about the client behind the client_id is needed
 func (s *Storage) GetClientByClientID(ctx context.Context, clientID string) (op.Client, error) {
-	log.Printf("\n clientid: %+v", clientID)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
@@ -624,7 +624,6 @@ func (s *Storage) GetClientByClientID(ctx context.Context, clientID string) (op.
 	if err != nil {
 		return nil, fmt.Errorf("tx.Commit(). %w", err)
 	}
-	log.Printf("\n client: %+v", client)
 
 	// Client already implements op.Client interface
 	return client, nil
@@ -639,9 +638,18 @@ func (s *Storage) AuthorizeClientIDSecret(ctx context.Context, clientID, clientS
 	}
 	defer tx.Rollback()
 
-	_, err = s.db.SearchClientByID(tx, clientID)
+	client, err := s.db.SearchClientByID(tx, clientID)
 	if err != nil {
 		return fmt.Errorf("s.db.SearchClientByID(tx, clientID). %w", err)
+	}
+
+	secret, err := libsecret.GetSecret(client.secret)
+	if err != nil {
+		return fmt.Errorf("libsecret.GetSecret(cliet.secret). %w", err)
+	}
+
+	if clientSecret != secret {
+		return errors.New("Client secret is not the same")
 	}
 
 	err = tx.Commit()
@@ -1229,7 +1237,7 @@ func (s *Storage) AddClient(ctx context.Context, client Client) error {
 	clientSecretFingerPrint := sha256.Sum256(clientSecret)
 	client.secret = hex.EncodeToString(clientSecretFingerPrint[:])
 
-	err = libsecret.SetSecret(clientSecretFingerPrint[:], clientSecret)
+	err = libsecret.SetSecret(hex.EncodeToString(clientSecretFingerPrint[:]), clientSecret)
 	if err != nil {
 		return fmt.Errorf("libsecret.SetSecret(clientSecretFingerPrint[:], clientSecret). %w", err)
 	}
@@ -1417,32 +1425,6 @@ func (s *Storage) GetConfiguration(ctx context.Context) (*Configuration, error) 
 	return config, nil
 }
 
-// GetConfiguration retrieves the application configuration from the database
-func (s *Storage) GetConfigurationWithNsec(ctx context.Context) (*Configuration, error) {
-
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("s.db.BeginTx(ctx). %w", err)
-	}
-	defer tx.Rollback()
-
-	config, err := s.db.GetConfigWithNsec(tx)
-	if err != nil {
-		return nil, fmt.Errorf("s.db.GetConfig(tx). %w", err)
-	}
-
-	// Validate the retrieved configuration
-	if err := validateConfiguration(config); err != nil {
-		return nil, fmt.Errorf("configuration validation failed: %w", err)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, fmt.Errorf("tx.Commit(). %w", err)
-	}
-	return config, nil
-}
-
 func (s *Storage) NsecIsRegistered(ctx context.Context) (bool, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1450,7 +1432,7 @@ func (s *Storage) NsecIsRegistered(ctx context.Context) (bool, error) {
 	}
 	defer tx.Rollback()
 
-	config, err := s.db.GetConfigWithNsec(tx)
+	config, err := s.db.GetConfig(tx)
 	if err != nil {
 		return false, fmt.Errorf("s.db.GetConfig(tx). %w", err)
 	}
@@ -1514,16 +1496,22 @@ func (s *Storage) UpdateConfiguration(ctx context.Context, config *Configuration
 	}
 	defer tx.Rollback()
 
-
-
-
-	configWithNsec, err := s.db.GetConfigWithNsec(tx)
-	if err != nil {
-		return fmt.Errorf("s.db.GetConfigWithNsec(tx). %w", err)
+	existingConfig, err := s.db.GetConfig(tx)
+	if err != nil && err != sql.ErrNoRows { // Check for actual errors, ignoring ErrNoRows for initial setup
+		return fmt.Errorf("s.db.GetConfig(tx). %w", err)
 	}
 
-	if config.Nsec == nil || len(*config.Nsec) == 0 {
-		config.Nsec = configWithNsec.Nsec
+	// INFO: if the fingerprint is different it means that the vertex server changed its nsec
+	if !reflect.DeepEqual(config.Nsec, existingConfig.Nsec) {
+		if config.Nsec != nil {
+			fingerPrint := sha256.Sum256(config.Nsec)
+
+			err := libsecret.SetSecret(libsecret.VertexNsec, config.Nsec)
+			if err != nil {
+				return fmt.Errorf("libsecret.SetSecret(libsecret.VertexNsec, config.Nsec). %w", err)
+			}
+			config.Nsec = fingerPrint[:]
+		}
 	}
 
 	err = s.db.SaveConfig(tx, config)

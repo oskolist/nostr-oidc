@@ -2,11 +2,19 @@ package templates
 
 import (
 	"fmt"
-	"github.com/lescuer97/nostr-oicd/storage"
 )
+type ConfigurationForm struct {
+	MaxClients       uint64  `form:"max_clients" validate:"gte=0"`
+	MaxUsers         uint64  `form:"max_users" validate:"gte=0"`
+	LastUpdated      uint64  `validate:"gte=0"`
+	RegistrationType string  `form:"registration_type" validate:"oneof=open manual"`
+	// EncryptionKey    []byte  `validate:"len=32"`
+	Nsec string `form:"nsec"`
+}
+
 
 templ AdminConfigurationPage() {
-	@Layout("Configuration", nil) {
+	@Layout("Configuration", adminImport()) {
 		<div
 			class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4 sm:px-6 lg:px-8"
 		>
@@ -26,7 +34,7 @@ templ AdminConfigurationPage() {
 	}
 }
 
-templ AdminConfigurationForm(config storage.Configuration, nsecRegistered bool) {
+templ AdminConfigurationForm(config ConfigurationForm, nsecRegistered bool) {
 	<div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg form">
 		<div class="px-4 py-5 sm:p-6">
 			<form hx-put="/admin/configuration" hx-target="this" hx-swap="none">
