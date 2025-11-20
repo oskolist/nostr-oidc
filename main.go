@@ -76,7 +76,7 @@ func main() {
 			log.Panicf("you don't have an nsec in your configuration. This should have never happened because it should have been required when making the registration type opened")
 		}
 
-		vrt, err := vertex.NewVertexChecker(*config.Nsec)
+		vrt, err := vertex.NewVertexChecker()
 		if err != nil {
 			log.Fatalf("vertex.NewVertexChecker(): %v", err)
 		}

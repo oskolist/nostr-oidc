@@ -10,7 +10,6 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip19"
 )
 
 const vertexRelay = "wss://relay.vertexlab.io"
@@ -23,31 +22,12 @@ type VertexChecker struct {
 var ErrInvalidNsec = errors.New("Invalid nsec")
 var RelayError = errors.New("vertex lab error")
 
-func NewVertexChecker(nsec string) (*VertexChecker, error) {
+func NewVertexChecker() (*VertexChecker, error) {
 	relay, err := nostr.RelayConnect(context.Background(), vertexRelay)
 	if err != nil {
 		return nil, fmt.Errorf("nostr.RelayConnect(ctx, vertexRelay). %w", err)
 	}
-
-	prefix, value, err := nip19.Decode(nsec)
-	if err != nil {
-		return nil, errors.Join(ErrInvalidNsec, fmt.Errorf("nip19.Decode(nsec). %w", err))
-	}
-
-	if prefix != "nsec" {
-		return nil, fmt.Errorf("nsec is no correct %w", ErrInvalidNsec)
-	}
-
-	hexPrivKey := value.(string)
-	pkBytes, err := hex.DecodeString(hexPrivKey)
-	if err != nil {
-		return nil, errors.Join(ErrInvalidNsec, fmt.Errorf("hex.DecodeString(hexPrivKey). %w", err))
-	}
-
-	privKey, _ := btcec.PrivKeyFromBytes(pkBytes)
-
 	vertexChecker := VertexChecker{
-		nsec:  privKey,
 		relay: relay,
 	}
 

@@ -218,9 +218,6 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the data
-	fmt.Printf("Received user: %+v", user)
-
 	client := templates.FormDataToStorageClient(&user, "")
 
 	if client == nil {
@@ -510,9 +507,9 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 
 	emptyNsecField := inputConfig.Nsec == nil || len(*inputConfig.Nsec) == 0
 	if !emptyNsecField {
-		vtx, err := vertex.NewVertexChecker(*inputConfig.Nsec)
+		vtx, err := vertex.NewVertexChecker()
 		if err != nil {
-			slog.Error("vertex.NewVertexChecker(*inputConfig.Nsec)", slog.Any("error", err))
+			slog.Error("vertex.NewVertexChecker()", slog.Any("error", err))
 			if errors.Is(err, vertex.ErrInvalidNsec) {
 				writeHtmlNotification(templates.NotifInfo{
 					Msg:  "You don't have a valid nsec",

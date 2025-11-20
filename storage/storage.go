@@ -5,7 +5,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"time"
@@ -13,6 +15,8 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/go-jose/go-jose/v4"
 	"github.com/google/uuid"
+	"github.com/lescuer97/nostr-oicd/libsecret"
+	"github.com/lescuer97/nostr-oicd/utils"
 	"github.com/nbd-wtf/go-nostr"
 	"github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
@@ -1214,6 +1218,22 @@ func (s *Storage) AddClient(ctx context.Context, client Client) error {
 	}
 	defer tx.Rollback()
 
+	clientSecret, err := utils.GenerateRandomKey()
+	if err != nil {
+		return fmt.Errorf("utils.GenerateRandomKey(). %w", err)
+	}
+	defer func() {
+		clientSecret = nil
+	}()
+
+	clientSecretFingerPrint := sha256.Sum256(clientSecret)
+	client.secret = hex.EncodeToString(clientSecretFingerPrint[:])
+
+	err = libsecret.SetSecret(clientSecretFingerPrint[:], clientSecret)
+	if err != nil {
+		return fmt.Errorf("libsecret.SetSecret(clientSecretFingerPrint[:], clientSecret). %w", err)
+	}
+
 	// Verify that the user code exists
 	err = s.db.AddClient(tx, &client)
 	if err != nil {
@@ -1493,6 +1513,9 @@ func (s *Storage) UpdateConfiguration(ctx context.Context, config *Configuration
 		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
+
+
+
 
 	configWithNsec, err := s.db.GetConfigWithNsec(tx)
 	if err != nil {
