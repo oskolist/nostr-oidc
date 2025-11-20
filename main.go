@@ -13,7 +13,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/google/uuid"
 	"github.com/lescuer97/nostr-oicd/storage"
 	"github.com/lescuer97/nostr-oicd/storage/database"
@@ -26,7 +26,7 @@ import (
 	"golang.org/x/text/language"
 )
 
-const ADMIN_USER_NSEC = "ADMIN_USER_NSEC"
+const ADMIN_USER_NPUB = "ADMIN_USER_NPUB"
 
 func main() {
 	// Load config from environment
@@ -54,7 +54,7 @@ func main() {
 		log.Fatalf("failed to ensure default configuration: %v", err)
 	}
 
-	if err := ensureAdminEnvNpubIsRegistedAsAdmin(os.Getenv(ADMIN_USER_NSEC), &storage); err != nil {
+	if err := ensureAdminEnvNpubIsRegistedAsAdmin(os.Getenv(ADMIN_USER_NPUB), &storage); err != nil {
 		log.Fatalf("failed to register nsec admin user: %v", err)
 	}
 
@@ -161,10 +161,9 @@ func ensureAdminEnvNpubIsRegistedAsAdmin(env string, store *storage.Storage) err
 	if err != nil {
 		return fmt.Errorf("store.GetAllAdminUsers(context.Background()). %w", err)
 	}
-	log.Printf("\n user: %+v", user)
 
 	if len(user) == 0 && len(env) == 0 {
-		return fmt.Errorf("\n No Admin users. You need to bootstrap an admin user with the  ADMIN_USER_NSEC enviroment variable.")
+		return fmt.Errorf("\n No Admin users. You need to bootstrap an admin user with the  ADMIN_USER_NPUB enviroment variable.")
 
 	}
 	if len(user) > 0 || len(env) == 0 {
@@ -176,7 +175,7 @@ func ensureAdminEnvNpubIsRegistedAsAdmin(env string, store *storage.Storage) err
 		return fmt.Errorf("nip19.Decode(nsec). %w", err)
 	}
 
-	if prefix != "nsec" {
+	if prefix != "npub" {
 		return fmt.Errorf("nsec is no correct")
 	}
 
@@ -186,7 +185,10 @@ func ensureAdminEnvNpubIsRegistedAsAdmin(env string, store *storage.Storage) err
 		return fmt.Errorf("hex.DecodeString(hexPrivKey). %w", err)
 	}
 
-	_, pubkey := btcec.PrivKeyFromBytes(pkBytes)
+	pubkey, err := schnorr.ParsePubKey(pkBytes)
+	if err != nil {
+		return fmt.Errorf("schnorr.ParsePubKey(pkBytes). %w", err)
+	}
 
 	_, err = store.CheckUserNpub(pubkey)
 	if errors.Is(err, sql.ErrNoRows) {

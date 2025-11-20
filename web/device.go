@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"log/slog"
@@ -197,6 +198,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("\n GETTING COFIRM HANDLER\n ")
 	cookie, err := r.Cookie(userCodeCookieName)
 	if err != nil {
 		slog.Error(
@@ -234,12 +236,21 @@ func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
 				"d.storage.CompleteDeviceAuthorization(r.Context(), data.UserCode, data.UserId)",
 				slog.Any("error", err),
 			)
-			redirectBack(w, r, err.Error())
+			// redirectBack(w, r, err.Error())
 			return
 		}
+		// fmt.Println("After finisi")
 		templates.LoginSuccess("Device logged in").Render(r.Context(), w)
 	case "denied":
 		err = d.storage.DenyDeviceAuthorization(r.Context(), data.UserCode)
+		if err != nil {
+			slog.Error(
+				"d.storage.CompleteDeviceAuthorization(r.Context(), data.UserCode, data.UserId)",
+				slog.Any("error", err),
+			)
+			// redirectBack(w, r, err.Error())
+			return
+		}
 		templates.LoginCanceled("If you want to retry go back to your device").Render(r.Context(), w)
 	default:
 

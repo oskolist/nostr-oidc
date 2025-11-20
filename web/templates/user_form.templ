@@ -13,7 +13,7 @@ type UserFormData struct {
 
 // UserFormPage renders the full page with the user form
 templ UserFormPage(userId *string) {
-	@Layout("User Form", nil) {
+	@Layout("User Form", adminImport()) {
 		{{userFormUrl :=  "/admin/user_form"
 	
 
