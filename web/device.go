@@ -2,9 +2,11 @@ package web
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"log/slog"
@@ -130,7 +132,10 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 			"d.storage.CheckNostrEventSignature(nostrEvent)",
 			slog.Any("error", err),
 		)
-		redirectBack(w, r, err.Error())
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Invalid signature",
+			Type: notificationTypeError,
+		}, r, w)
 		return
 	}
 
@@ -140,7 +145,10 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 			"hex.DecodeString(nostrEvent.PubKey)",
 			slog.Any("error", err),
 		)
-		redirectBack(w, r, err.Error())
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Pubkey is not valid",
+			Type: notificationTypeError,
+		}, r, w)
 		return
 	}
 	pubkey, err := schnorr.ParsePubKey(pbBytes)
@@ -149,7 +157,10 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 			"schnorr.ParsePubKey(pbBytes)",
 			slog.Any("error", err),
 		)
-		redirectBack(w, r, err.Error())
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Pubkey is not valid",
+			Type: notificationTypeError,
+		}, r, w)
 		return
 	}
 
@@ -159,6 +170,13 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 			"d.storage.CheckUserNpub(pubkey)",
 			slog.Any("error", err),
 		)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeHtmlNotification(templates.NotifInfo{
+				Msg:  "Your user is not signed up",
+				Type: notificationTypeError,
+			}, r, w)
+			return
+		}
 		redirectBack(w, r, err.Error())
 		return
 	}
@@ -197,6 +215,7 @@ func (d *deviceLogin) loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("\n GETTING COFIRM HANDLER\n ")
 	cookie, err := r.Cookie(userCodeCookieName)
 	if err != nil {
 		slog.Error(
@@ -234,12 +253,21 @@ func (d *deviceLogin) confirmHandler(w http.ResponseWriter, r *http.Request) {
 				"d.storage.CompleteDeviceAuthorization(r.Context(), data.UserCode, data.UserId)",
 				slog.Any("error", err),
 			)
-			redirectBack(w, r, err.Error())
+			// redirectBack(w, r, err.Error())
 			return
 		}
+		// fmt.Println("After finisi")
 		templates.LoginSuccess("Device logged in").Render(r.Context(), w)
 	case "denied":
 		err = d.storage.DenyDeviceAuthorization(r.Context(), data.UserCode)
+		if err != nil {
+			slog.Error(
+				"d.storage.CompleteDeviceAuthorization(r.Context(), data.UserCode, data.UserId)",
+				slog.Any("error", err),
+			)
+			// redirectBack(w, r, err.Error())
+			return
+		}
 		templates.LoginCanceled("If you want to retry go back to your device").Render(r.Context(), w)
 	default:
 

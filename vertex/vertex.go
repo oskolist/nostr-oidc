@@ -9,45 +9,25 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/lescuer97/nostr-oicd/libsecret"
 	"github.com/nbd-wtf/go-nostr"
-	"github.com/nbd-wtf/go-nostr/nip19"
 )
 
 const vertexRelay = "wss://relay.vertexlab.io"
 
 type VertexChecker struct {
-	nsec  *btcec.PrivateKey
 	relay *nostr.Relay
 }
 
 var ErrInvalidNsec = errors.New("Invalid nsec")
 var RelayError = errors.New("vertex lab error")
 
-func NewVertexChecker(nsec string) (*VertexChecker, error) {
+func NewVertexChecker() (*VertexChecker, error) {
 	relay, err := nostr.RelayConnect(context.Background(), vertexRelay)
 	if err != nil {
 		return nil, fmt.Errorf("nostr.RelayConnect(ctx, vertexRelay). %w", err)
 	}
-
-	prefix, value, err := nip19.Decode(nsec)
-	if err != nil {
-		return nil, errors.Join(ErrInvalidNsec, fmt.Errorf("nip19.Decode(nsec). %w", err))
-	}
-
-	if prefix != "nsec" {
-		return nil, fmt.Errorf("nsec is no correct %w", ErrInvalidNsec)
-	}
-
-	hexPrivKey := value.(string)
-	pkBytes, err := hex.DecodeString(hexPrivKey)
-	if err != nil {
-		return nil, errors.Join(ErrInvalidNsec, fmt.Errorf("hex.DecodeString(hexPrivKey). %w", err))
-	}
-
-	privKey, _ := btcec.PrivKeyFromBytes(pkBytes)
-
 	vertexChecker := VertexChecker{
-		nsec:  privKey,
 		relay: relay,
 	}
 
@@ -57,6 +37,22 @@ func NewVertexChecker(nsec string) (*VertexChecker, error) {
 type VertexResult struct {
 	Npub string  `json:"npub"`
 	Rank float64 `json:"rank"`
+}
+
+func (v *VertexChecker) getNsecFromStore() ([]byte, error) {
+	secret, err := libsecret.GetSecret(libsecret.VertexNsec)
+	if err != nil {
+		return nil, fmt.Errorf("libsecret.GetSecret(libsecret.VertexNsec).  %w", err)
+	}
+	defer func() {
+		secret = ""
+	}()
+
+	nsecBytes, err := hex.DecodeString(secret)
+	if err != nil {
+		return nil, fmt.Errorf("hex.DecodeString(secret).  %w", err)
+	}
+	return nsecBytes, nil
 }
 
 func (v *VertexChecker) NpubHasEnoughReputation(ctx context.Context, npub *btcec.PublicKey) (bool, error) {
@@ -82,9 +78,17 @@ func (v *VertexChecker) NpubHasEnoughReputation(ctx context.Context, npub *btcec
 		},
 	}
 
-	err := event.Sign(hex.EncodeToString(v.nsec.Serialize()))
+	nsec, err := v.getNsecFromStore()
 	if err != nil {
-		return false, fmt.Errorf("event.Sign(hex.EncodeToString(v.nsec.Serialize())).  %w", err)
+		return false, fmt.Errorf("v.getNsecFromStore().  %w", err)
+	}
+	defer func() {
+		nsec = nil
+	}()
+
+	err = event.Sign(hex.EncodeToString(nsec))
+	if err != nil {
+		return false, fmt.Errorf("event.Sign(hex.EncodeToString(nsec)).  %w", err)
 	}
 
 	// nostr.signer

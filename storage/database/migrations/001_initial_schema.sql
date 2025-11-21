@@ -3,7 +3,7 @@
 CREATE TABLE clients (
     id TEXT PRIMARY KEY,
     secret TEXT,
-    redirect_uris TEXT,
+    redirect_uris TEXT NOT NULL,
     application_type INTEGER,
     auth_method TEXT,
     response_types TEXT,
@@ -80,7 +80,7 @@ CREATE TABLE configuration (
     max_users INTEGER NOT NULL,
     last_updated INTEGER NOT NULL,
     registration_type TEXT NOT NULL CHECK (registration_type IN ('open', 'paid', 'manual')),
-    nsec TEXT,
+    nsec BLOB,
     encryption_key BLOB NOT NULL
 );
 

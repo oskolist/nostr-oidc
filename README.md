@@ -1,57 +1,55 @@
 # nostr-oicd
 
-Go Chi server with Nostr NIP-07 authentication, Templ templates, and Tailwind CSS Play CDN.
+NOTE: This project is still in developement. Use carefully.
 
-Development notes
+This is a service that provides OIDC functionality for [NOSTR](https://github.com/nostr-protocol/nips/blob/master/01.md). Originally thought for (Cashu Mints)[https://github.com/cashubtc/nuts/blob/main/21.md] clear auth.
 
-- Templ components are stored in templates/ and compiled using `templ generate` locally. Generated Go files should not be committed (see .gitignore).
-- Tailwind CSS is loaded from the Play CDN in templates/layouts/base.templ. No npm or build step is required for prototyping.
-- SQLite driver: github.com/mattn/go-sqlite3 (requires CGO). Use modernc.org/sqlite if you prefer pure-Go builds.
+The two main authentification functionalities available are:
+- Authorication code with PKCE. 
+- Device Authentification.
 
-Environment
+This service is thought to be a simpler replacement of [Keycloak](https://github.com/keycloak/keycloak) with NOSTR first
+party functionality.
 
-- Copy `.env.example` to `.env` and update secrets (JWT_SECRET, DATABASE_PATH, COOKIE_*).
-- The server will load a `.env` file automatically when present. For production, prefer platform-managed environment variables or secrets stores.
+This service allows for open signup using Nostr WoT. The Vertex relay is used to avoid letting Bots or fake accounts in. 
 
-Dev run (local development)
+All secrets are stored securely in a keychain. The database only store fingerprints of the secrets so they can be
+queried later.
 
-1. Copy the example env file and edit values:
+## How to run
 
-```sh
-cp .env.example .env
-# edit .env to set JWT_SECRET and other vars
+The first time you run the program you will need to run it with the `ADMIN_USER_NPUB` enviroment variable. The system
+will create and administrative user to be able to login to the user dashboard.
+
+You will be able to login to it in the `/admin/login` endpoint. After success it will redirect to the dashboard.
+
+## Todos
+
+- Client secret rotation and showing of secret.
+- Add Google sign on.
+
+### Support 
+
+Pull requests and suggestions are always welcomed. The more people have eyes on this the better.
+
+If you can donate monetarily it would be greatly appreciated. The funds would go to the development of the mint and
+servers for testing.
+
+You can contact me on nostr:
+
+*on-chain silent payments*
+```
+sp1qq0fju879lh2rgvwjjd7e78pg4gnr7a8aumth8qlezdgjs2rwzk7ssqhrm5g4pmvuv244zu5h87d55uyys804ldutjkav6kwupwh2nke9yys3v2j2
 ```
 
-2. (Optional) Install templ generator if you edit templ files:
-
-```sh
-go install github.com/a-h/templ/cmd/templ@latest
+*Donate with lightning*
+```
+npub1m03lx54jdf4c5pnghcjeqracehcp7h58zsgd9rtezk946yuzwfyqh9gx6a@npub.cash
 ```
 
-3. Generate templ Go code (if needed):
 
-```sh
-templ generate
+*Donate with on-chain*
+
 ```
-
-4. Run the server (CGO required for mattn/go-sqlite3):
-
-```sh
-# Ensure CGO is enabled if using mattn/go-sqlite3
-CGO_ENABLED=1 go run ./cmd/server
+bc1p7penxt9gw7gg5a50dq6h47hdkj5yy8cpp0wwvgl2slutjg5u2frsqf4grz
 ```
-
-Notes & tips
-
-- If you don't want to use a `.env` file, set environment variables directly (e.g., in your shell, systemd unit, or container runtime).
-- The app will run migrations from `./database/migrations` at startup. Back up your DB before running in production.
-- For CI, ensure `templ generate` is run or that the templ CLI is available.
-
-
-# Available enviroment variables
-
-To first set the admin user for access to the administration dashboard. 
-
-you can run the server with the `ADMIN_USER_NSEC` env variable set with a valid nsec. This nsec will be registered as a
-user with admin privilages. Once is registered you don't have to run the env variable again.
-

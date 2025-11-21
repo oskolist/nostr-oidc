@@ -18,7 +18,7 @@ type ClientFormData struct {
 }
 
 templ ClientFormPage(clientId *string) {
-	@Layout("Client Configuration", nil) {
+	@Layout("Client Configuration", adminImport()) {
 			{{clientFormUrl :=  "/admin/client_form"
 			
 			if clientId != nil {
@@ -222,10 +222,6 @@ func ResponseTypeOptions() []CheckboxOption {
 		"code",
 		"id_token",
 		"token",
-		"id_token token",
-		"code id_token",
-		"code token",
-		"code id_token token",
 	}
 	options := make([]CheckboxOption, 0, len(responseTypes))
 	for _, rt := range responseTypes {

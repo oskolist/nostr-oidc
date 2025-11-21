@@ -1,4 +1,4 @@
-(async function() {
+document.addEventListener("DOMContentLoaded", async function() {
     const configElement = document.getElementById('token-config');
     const config = JSON.parse(configElement.textContent);
 
@@ -132,4 +132,4 @@
             }
         }, 1000);
     }
-})()
+})

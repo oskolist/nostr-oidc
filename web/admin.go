@@ -15,6 +15,7 @@ import (
 	"github.com/go-playground/form/v4"
 	"github.com/google/uuid"
 	"github.com/lescuer97/nostr-oicd/storage"
+	"github.com/lescuer97/nostr-oicd/utils"
 	"github.com/lescuer97/nostr-oicd/vertex"
 	"github.com/lescuer97/nostr-oicd/web/templates"
 )
@@ -164,13 +165,17 @@ func (s *adminHandler) addClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the data
-	fmt.Printf("Received user: %+v", user)
-
 	client := templates.FormDataToStorageClient(&user, "")
-
 	if client == nil {
 		log.Panicf("client should have never been nil")
+	}
+
+	if len(client.RedirectURIs()) == 0 {
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "you need at least 1 redirect uri",
+			Type: notificationTypeError,
+		}, r, w)
+		return
 	}
 
 	err := s.server.Storage.AddClient(r.Context(), *client)
@@ -203,13 +208,13 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode into your struct
-	var user templates.ClientFormData
-	if err := decoder.Decode(&user, r.Form); err != nil {
+	var clienForm templates.ClientFormData
+	if err := decoder.Decode(&clienForm, r.Form); err != nil {
 		http.Error(w, "Invalid form data", http.StatusBadRequest)
 		return
 	}
 
-	if id != user.ClientID {
+	if id != clienForm.ClientID {
 		slog.Error("trying to editing the wrong client")
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Trying to change a channel id without access",
@@ -218,10 +223,15 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the data
-	fmt.Printf("Received user: %+v", user)
+	if len(clienForm.RedirectURIs) == 0 {
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "you need at least 1 redirect uri",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
 
-	client := templates.FormDataToStorageClient(&user, "")
+	client := templates.FormDataToStorageClient(&clienForm, "")
 
 	if client == nil {
 		log.Panicf("client should have never been nil")
@@ -233,7 +243,7 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 			Msg:  "Could not add client",
 			Type: notificationTypeError,
 		}, r, w)
-
+		return
 	}
 
 	// Success - show success message
@@ -477,7 +487,14 @@ func (s *adminHandler) configurationFormFragmentHandler(w http.ResponseWriter, r
 		return
 	}
 
-	templates.AdminConfigurationForm(*cfg, nsecRegistered).Render(r.Context(), w)
+	tmplConfig := templates.ConfigurationForm{
+		MaxClients:       cfg.MaxClients,
+		MaxUsers:         cfg.MaxUsers,
+		LastUpdated:      cfg.LastUpdated,
+		RegistrationType: cfg.RegistrationType,
+	}
+
+	templates.AdminConfigurationForm(tmplConfig, nsecRegistered).Render(r.Context(), w)
 }
 
 func (s *adminHandler) configuration(w http.ResponseWriter, r *http.Request) {
@@ -485,10 +502,10 @@ func (s *adminHandler) configuration(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Request) {
-	var inputConfig storage.Configuration
+	var inputConfig templates.ConfigurationForm
 
 	if err := r.ParseForm(); err != nil {
-		slog.Error("failed to decode form into config struct", slog.Any("error", err))
+		slog.Error("Failed to get form", slog.Any("error", err))
 
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not parse form",
@@ -502,17 +519,17 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 		slog.Error("failed to decode form into config struct", slog.Any("error", err))
 
 		writeHtmlNotification(templates.NotifInfo{
-			Msg:  "Could not parse form",
+			Msg:  "Could not configuration from form",
 			Type: notificationTypeError,
 		}, r, w)
 		return
 	}
 
-	emptyNsecField := inputConfig.Nsec == nil || len(*inputConfig.Nsec) == 0
+	emptyNsecField := len(inputConfig.Nsec) == 0
 	if !emptyNsecField {
-		vtx, err := vertex.NewVertexChecker(*inputConfig.Nsec)
+		vtx, err := vertex.NewVertexChecker()
 		if err != nil {
-			slog.Error("vertex.NewVertexChecker(*inputConfig.Nsec)", slog.Any("error", err))
+			slog.Error("vertex.NewVertexChecker()", slog.Any("error", err))
 			if errors.Is(err, vertex.ErrInvalidNsec) {
 				writeHtmlNotification(templates.NotifInfo{
 					Msg:  "You don't have a valid nsec",
@@ -555,11 +572,25 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
 		return
 	}
-	// Update the LastUpdated field
-	inputConfig.LastUpdated = uint64(time.Now().Unix())
-	inputConfig.EncryptionKey = config.EncryptionKey
 
-	if err := s.server.Storage.UpdateConfiguration(r.Context(), &inputConfig); err != nil {
+	// Update the LastUpdated field
+	// INFO: pass the values from the form to the config
+	transformConfigurationFormForm(inputConfig, config)
+
+	// INFO: Add check for vertex nsec
+	if !emptyNsecField {
+		privKey, err := utils.GetBtcPrivateKeyFromNsec(inputConfig.Nsec)
+		if err != nil {
+			writeHtmlNotification(templates.NotifInfo{
+				Msg:  "You don't have a valid nsec. You need one for open registration type",
+				Type: notificationTypeError,
+			}, r, w)
+			return
+		}
+		config.Nsec = privKey.Serialize()
+	}
+
+	if err := s.server.Storage.UpdateConfiguration(r.Context(), config); err != nil {
 		slog.Error("failed to update configuration", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not update configuration",
@@ -572,4 +603,11 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 		Msg:  "Configuration updated successfully",
 		Type: notificationTypeSuccess,
 	}, r, w)
+}
+
+func transformConfigurationFormForm(form templates.ConfigurationForm, config *storage.Configuration) {
+	config.LastUpdated = uint64(time.Now().Unix())
+	config.MaxClients = form.MaxClients
+	config.MaxUsers = form.MaxUsers
+	config.RegistrationType = form.RegistrationType
 }
