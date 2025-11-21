@@ -1,6 +1,10 @@
 package templates
 
-import "fmt"
+import (
+	"fmt"
+
+	"golang.org/x/text/language"
+)
 
 // UserFormData holds the data needed to render the user form
 type UserFormData struct {
@@ -170,21 +174,11 @@ type LanguageOption struct {
 // LanguageOptions returns available language options for the form
 func LanguageOptions() []SelectOption {
 	return []SelectOption{
-		{Label: "English (US)", Value: "en-US"},
-		{Label: "English (GB)", Value: "en-GB"},
-		{Label: "Español (España)", Value: "es-ES"},
-		{Label: "Español (México)", Value: "es-MX"},
-		{Label: "Français (France)", Value: "fr-FR"},
-		{Label: "Deutsch (Deutschland)", Value: "de-DE"},
-		{Label: "Italiano (Italia)", Value: "it-IT"},
-		{Label: "Português (Brasil)", Value: "pt-BR"},
-		{Label: "Português (Portugal)", Value: "pt-PT"},
-		{Label: "日本語 (Japan)", Value: "ja-JP"},
-		{Label: "中文 (Simplified, China)", Value: "zh-Hans-CN"},
-		{Label: "中文 (Traditional, Taiwan)", Value: "zh-Hant-TW"},
-		{Label: "한국어 (Korea)", Value: "ko-KR"},
-		{Label: "Русский (Russia)", Value: "ru-RU"},
-		{Label: "Türkçe (Turkey)", Value: "tr-TR"},
+		{Label: "English", Value: language.English.String()},
+		{Label: "Spanish", Value: language.Spanish.String()},
+		{Label: "German", Value: language.German.String()},
+		{Label: "Japanese", Value: language.Japanese.String()},
+		{Label: "Chinese", Value: language.Chinese.String()},
 	}
 }
 

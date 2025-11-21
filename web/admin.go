@@ -324,8 +324,8 @@ func (s *adminHandler) addUser(w http.ResponseWriter, r *http.Request) {
 
 func (s *adminHandler) addUserForm(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	log.Printf("\n id %+v", id)
 	user, err := s.server.Storage.GetUserById(r.Context(), id)
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			fmt.Printf("\n inside the no row \n")
@@ -340,7 +340,7 @@ func (s *adminHandler) addUserForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("\n user %+v", user)
+	fmt.Printf("\n user %+v", user)
 	// Convert storage.User to UserFormData
 	userFormData := templates.StorageUserToFormData(user)
 	log.Printf("\n userFormData %+v", userFormData)
@@ -388,7 +388,7 @@ func (s *adminHandler) addUserHandler(w http.ResponseWriter, r *http.Request) {
 			Msg:  "Could not add user",
 			Type: notificationTypeError,
 		}, r, w)
-
+		return
 	}
 
 	// Success - show success message
