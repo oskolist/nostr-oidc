@@ -208,13 +208,13 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Decode into your struct
-	var user templates.ClientFormData
-	if err := decoder.Decode(&user, r.Form); err != nil {
+	var clienForm templates.ClientFormData
+	if err := decoder.Decode(&clienForm, r.Form); err != nil {
 		http.Error(w, "Invalid form data", http.StatusBadRequest)
 		return
 	}
 
-	if id != user.ClientID {
+	if id != clienForm.ClientID {
 		slog.Error("trying to editing the wrong client")
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Trying to change a channel id without access",
@@ -223,7 +223,15 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := templates.FormDataToStorageClient(&user, "")
+	if len(clienForm.RedirectURIs) == 0 {
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "you need at least 1 redirect uri",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	client := templates.FormDataToStorageClient(&clienForm, "")
 
 	if client == nil {
 		log.Panicf("client should have never been nil")
@@ -235,7 +243,7 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 			Msg:  "Could not add client",
 			Type: notificationTypeError,
 		}, r, w)
-
+		return
 	}
 
 	// Success - show success message

@@ -390,7 +390,7 @@ func (s *storageDB) EditClient(tx *sql.Tx, client *Client) error {
 
 	query := `
 		UPDATE clients SET
-			secret = ?, redirect_uris = ?, application_type = ?, auth_method = ?,
+			redirect_uris = ?, application_type = ?, auth_method = ?,
 			response_types = ?, grant_types = ?, access_token_type = ?, dev_mode = ?,
 			id_token_userinfo_claims_assertion = ?, clock_skew = ?,
 			post_logout_redirect_uri_globs = ?, redirect_uri_globs = ?
@@ -403,7 +403,7 @@ func (s *storageDB) EditClient(tx *sql.Tx, client *Client) error {
 	defer stmt.Close()
 
 	_, err = stmt.Exec(
-		client.secret, string(redirectURIsJSON), int(client.applicationType),
+		string(redirectURIsJSON), int(client.applicationType),
 		string(client.authMethod), string(responseTypesJSON), string(grantTypesJSON),
 		int(client.accessTokenType), client.devMode, client.idTokenUserinfoClaimsAssertion,
 		client.clockSkew.Nanoseconds(), string(postLogoutRedirectURIsJSON), string(redirectURIsGlobsJSON),

@@ -210,7 +210,6 @@ func ensureAdminEnvNpubIsRegistedAsAdmin(env string, store *storage.Storage) err
 }
 
 func ensureOICDAdminDashboardClientIdExists(store *storage.Storage) error {
-	// TODO: add check for at least one admin user
 	_, err := store.GetClientByClientID(context.Background(), storage.OICD_ADMIN_DASHBOARD_CLIENT_ID)
 	if errors.Is(err, sql.ErrNoRows) {
 		client := storage.NewClient(storage.OICD_ADMIN_DASHBOARD_CLIENT_ID, "", []string{"http://localhost:8082/admin/oidc/callback"}, op.ApplicationTypeNative,
