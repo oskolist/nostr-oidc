@@ -25,7 +25,6 @@ func SetupKeychain() error {
 		"key": goLibSecret.SchemaAttributeString,
 	}
 
-	// attr.Se
 	schema, err := goLibSecret.NewSchema(SchemaName, goLibSecret.SchemaFlagsNone, attr)
 	if err != nil {
 		return fmt.Errorf("goLibSecret.NewSchema(SchemaName). %w", err)
@@ -37,7 +36,6 @@ func SetupKeychain() error {
 }
 
 func SetSecret(id string, secret []byte) error {
-	// schemaType := goLibSecret.SchemaType
 	if mainSchema == nil {
 		return SchemaNotSetup
 	}
