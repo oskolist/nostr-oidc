@@ -15,6 +15,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/google/uuid"
+	"github.com/lescuer97/nostr-oicd/libsecret"
 	"github.com/lescuer97/nostr-oicd/storage"
 	"github.com/lescuer97/nostr-oicd/storage/database"
 	"github.com/lescuer97/nostr-oicd/utils"
@@ -31,6 +32,10 @@ const ADMIN_USER_NPUB = "ADMIN_USER_NPUB"
 func main() {
 	// Load config from environment
 	// cfg := config.LoadFromEnv()
+	err := libsecret.SetupKeychain()
+	if err != nil {
+		log.Fatalf("libsecret.SetupKeychain() %v", err)
+	}
 
 	// Open DB using our helper
 	db, err := database.Open("./database.db")
