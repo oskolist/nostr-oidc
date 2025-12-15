@@ -60,7 +60,7 @@ templ ClientFormInner(client *ClientFormData, isPreset bool) {
 			<!-- Client ID -->
 			<div class="mb-6">
 				if client != nil {
-					@TextInput("client_id", "Client ID", "app_client_123", &client.ClientID, true, "Unique identifier for your client application", true, nil)
+					@TextInput("client_id", "Client ID", "app_client_123", &client.ClientID, true, "Unique identifier for your client application", &client.ClientID != nil && !isPreset, nil)
 				} else {
 					@TextInput("client_id", "Client ID", "app_client_123", nil, true, "Unique identifier for your client application", false, nil)
 				}

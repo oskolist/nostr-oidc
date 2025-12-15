@@ -1232,9 +1232,7 @@ func (s *Storage) AddClient(ctx context.Context, client Client) error {
 			return fmt.Errorf("could not search client: %w", err)
 		}
 	}
-	fmt.Printf("\n used_client: %+v", *used_client)
-	fmt.Printf("\n client: %+v", client)
-	if used_client.id == client.id {
+	if used_client != nil && used_client.id == client.id {
 		return fmt.Errorf("client already exists")
 	}
 
@@ -1566,7 +1564,7 @@ func (s *Storage) AddUser(ctx context.Context, user User) error {
 			return fmt.Errorf("could not search user: %w", err)
 		}
 	}
-	if user_used.ID == user.ID {
+	if user_used != nil && user_used.ID == user.ID {
 		return fmt.Errorf("user already exists")
 	}
 

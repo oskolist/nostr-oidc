@@ -204,6 +204,7 @@ func (s *adminHandler) addClient(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	w.Header().Add("Hx-Push-Url", fmt.Sprintf("/admin/client/%s", client.GetID()))
 	// Success - show success message
 	writeHtmlNotification(templates.NotifInfo{
 		Msg:  "Client created successfully (database save pending implementation)",
@@ -254,9 +255,9 @@ func (s *adminHandler) editClient(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.server.Storage.EditClient(r.Context(), *client)
 	if err != nil {
-		slog.Error("s.storage.AddClient", slog.Any("error", err))
+		slog.Error("s.storage.EditClient", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
-			Msg:  "Could not add client",
+			Msg:  "Could not edit client",
 			Type: notificationTypeError,
 		}, r, w)
 		return
@@ -358,8 +359,8 @@ func (s *adminHandler) addUserForm(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("\n user %+v", user)
 	// Convert storage.User to UserFormData
+
 	userFormData := templates.StorageUserToFormData(user)
-	log.Printf("\n userFormData %+v", userFormData)
 	templates.UserForm(&userFormData).Render(r.Context(), w)
 }
 
@@ -407,6 +408,7 @@ func (s *adminHandler) addUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Add("Hx-Push-Url", fmt.Sprintf("/admin/user/%s", user.ID))
 	// Success - show success message
 	writeHtmlNotification(templates.NotifInfo{
 		Msg:  "Created user successfully",

@@ -97,10 +97,10 @@ templ UserForm(user *UserFormData) {
 				if user != nil {
 					@TextInput("npub", "Nostr Public Key (Npub)",
 						"", &user.Npub, false,
-						"Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", true, nil)
+						"Nostr public key in NIP19 bech32 format (npub1...)", true, nil)
 				} else {
 					@TextInput("npub", "Nostr Public Key (Npub)",
-						"", nil, false, "Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", false, nil)
+						"", nil, false, "Nostr public key in NIP19 bech32 format (npub1...)", false, nil)
 				}
 			</div>
 		</div>
