@@ -11,7 +11,7 @@ import (
 const Service = "nostr-oidc"
 
 const VertexNsec = "vertex-nsec"
-const SchemaName = "org.example.NostrOidc"
+const SchemaName = "org.app.NostrOidc"
 
 var (
 	ErrNotFound    = errors.New("Could not found value in keystore")
