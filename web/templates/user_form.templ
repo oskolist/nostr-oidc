@@ -18,150 +18,150 @@ type UserFormData struct {
 // UserFormPage renders the full page with the user form
 templ UserFormPage(userId *string) {
 	@Layout("User Form", adminImport()) {
-		{{userFormUrl :=  "/admin/user_form"
-	
+		{{
+			userFormUrl := "/admin/user_form"
 
-if userId != nil {
-	userFormUrl += fmt.Sprintf("?id=%s", *userId)
-}
+			if userId != nil {
+				userFormUrl += fmt.Sprintf("?id=%s", *userId)
+			}
 		}}
-	<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4 sm:px-6 lg:px-8">
-		<div class="max-w-4xl mx-auto dark:text-white">
-			<!-- Header -->
-			<div class="mb-8">
-				<h1 class="text-3xl font-bold text-gray-900 dark:text-white">User Configuration</h1>
-				<p class="mt-2 text-lg text-gray-600 dark:text-gray-300">Manage user accounts and settings</p>
+		<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4 sm:px-6 lg:px-8">
+			<div class="max-w-4xl mx-auto dark:text-white">
+				<!-- Header -->
+				<div class="mb-8">
+					<h1 class="text-3xl font-bold text-gray-900 dark:text-white">User Configuration</h1>
+					<p class="mt-2 text-lg text-gray-600 dark:text-gray-300">Manage user accounts and settings</p>
+				</div>
+				<div
+					hx-get={ userFormUrl }
+					hx-trigger="load"
+					hx-swap="innerHTML"
+					hx-target=".form"
+					class="form"
+				></div>
 			</div>
-		<div hx-get={userFormUrl}
-		hx-trigger="load"
-		hx-swap="innerHTML"
-		hx-target=".form"
-		class="form"
-
-		></div>
 		</div>
-	</div>
 	}
 }
 
 // UserForm renders the main user configuration form
 templ UserForm(user *UserFormData) {
-			<!-- Form -->
-			<form
-				hx-post={ getUserFormEndpoint(user) }
-				hx-target=".form"
-				hx-swap="none"
-				class="form bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-2xl p-8 space-y-8"
+	<!-- Form -->
+	<form
+		hx-post={ getUserFormEndpoint(user) }
+		hx-target=".form"
+		hx-swap="none"
+		class="form bg-white dark:bg-gray-800 rounded-xl shadow-lg dark:shadow-2xl p-8 space-y-8"
+	>
+		<!-- Hidden ID field for edit mode -->
+		if user != nil && user.ID != "" {
+			<input type="hidden" name="id" value={ user.ID }/>
+		}
+		<!-- Section 1: Basic Information (only shown in edit mode) -->
+		if user != nil && user.ID != "" {
+			<div class="border-b border-gray-200 dark:border-gray-700 pb-8">
+				<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Basic Information</h2>
+				<!-- User ID Display (read-only, not editable) -->
+				<div class="mb-6">
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+						User ID
+					</label>
+					<div class="px-4 py-3 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 font-mono text-sm">
+						{ user.ID }
+					</div>
+					<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">User identifier (cannot be changed)</p>
+				</div>
+				<!-- Active Status (only shown in edit mode) -->
+				<div class="mb-6">
+					<label class="flex items-center cursor-pointer">
+						<input
+							type="checkbox"
+							name="active"
+							value="on"
+							if user.Active {
+								checked
+							}
+							class="w-4 h-4 text-indigo-600 dark:text-indigo-400 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 cursor-pointer"
+						/>
+						<span class="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">Account Active</span>
+						<p class="text-xs text-gray-500 dark:text-gray-400 ml-auto">Enable or disable user login access</p>
+					</label>
+				</div>
+			</div>
+		}
+		<!-- Section 2: Nostr Configuration -->
+		<div class="border-b border-gray-200 dark:border-gray-700 pb-8">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Nostr Configuration</h2>
+			<!-- Nostr Public Key (Npub) -->
+			<div class="mb-6">
+				if user != nil {
+					@TextInput("npub", "Nostr Public Key (Npub)",
+						"", &user.Npub, false,
+						"Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", true, nil)
+				} else {
+					@TextInput("npub", "Nostr Public Key (Npub)",
+						"", nil, false, "Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", false, nil)
+				}
+			</div>
+		</div>
+		<!-- Section 3: Preferences -->
+		<div class="border-b border-gray-200 dark:border-gray-700 pb-8">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Preferences</h2>
+			<!-- Preferred Language -->
+			<div class="mb-6">
+				if user != nil {
+					@SelectInput("preferred_language", "Preferred Language", LanguageOptions(), &user.PreferredLanguage, true, "Your preferred language for interface and communications")
+				} else {
+					@SelectInput("preferred_language", "Preferred Language", LanguageOptions(), func() *string { s := "en-US"; return &s }(), true, "Your preferred language for interface and communications")
+				}
+			</div>
+		</div>
+		<!-- Section 4: Permissions -->
+		<div class="pb-8 dark:text-gray-300">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Permissions</h2>
+			<!-- Administrator Privileges -->
+			<div class="mb-6">
+				<label class="flex items-center cursor-pointer">
+					<input
+						type="checkbox"
+						name="is_admin"
+						if user != nil && user.IsAdmin {
+							checked
+						}
+						class="w-4 h-4 text-indigo-600 dark:text-indigo-400 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 cursor-pointer"
+					/>
+					<span class="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">Administrator Privileges</span>
+					<p class="text-xs text-gray-500 dark:text-gray-400 ml-auto">Grant administrative access to manage the system</p>
+				</label>
+			</div>
+		</div>
+		<!-- Form Actions -->
+		<div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
+			<button
+				type="button"
+				onclick="window.history.back()"
+				class="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-800 dark:focus:ring-indigo-400"
 			>
-				<!-- Hidden ID field for edit mode -->
-				if user != nil && user.ID != "" {
-					<input type="hidden" name="id" value={ user.ID }/>
+				<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+				</svg>
+				Cancel
+			</button>
+			<button
+				type="submit"
+				class="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-md hover:shadow-lg dark:focus:ring-offset-gray-800 dark:focus:ring-indigo-400"
+			>
+				<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+				</svg>
+				if user == nil || user.ID == "" {
+					Create User
+				} else {
+					Save Configuration
 				}
-				<!-- Section 1: Basic Information (only shown in edit mode) -->
-				if user != nil && user.ID != "" {
-					<div class="border-b border-gray-200 dark:border-gray-700 pb-8">
-						<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Basic Information</h2>
-						<!-- User ID Display (read-only, not editable) -->
-						<div class="mb-6">
-							<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-								User ID
-							</label>
-							<div class="px-4 py-3 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 font-mono text-sm">
-								{ user.ID }
-							</div>
-							<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">User identifier (cannot be changed)</p>
-						</div>
-						<!-- Active Status (only shown in edit mode) -->
-						<div class="mb-6">
-							<label class="flex items-center cursor-pointer">
-								<input
-									type="checkbox"
-									name="active"
-									value="on"
-									if user.Active {
-										checked
-									}
-									class="w-4 h-4 text-indigo-600 dark:text-indigo-400 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 cursor-pointer"
-								/>
-								<span class="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">Account Active</span>
-								<p class="text-xs text-gray-500 dark:text-gray-400 ml-auto">Enable or disable user login access</p>
-							</label>
-						</div>
-					</div>
-				}
-				<!-- Section 2: Nostr Configuration -->
-				<div class="border-b border-gray-200 dark:border-gray-700 pb-8">
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Nostr Configuration</h2>
-					<!-- Nostr Public Key (Npub) -->
-					<div class="mb-6">
-						if user != nil {
-							@TextInput("npub", "Nostr Public Key (Npub)",
-								"", &user.Npub, false,
-								"Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", true, nil)
-						} else {
-							@TextInput("npub", "Nostr Public Key (Npub)",
-								"", nil, false, "Nostr public key in NIP19 bech32 format (npub1...) or hex format (optional)", false, nil)
-						}
-					</div>
-				</div>
-				<!-- Section 3: Preferences -->
-				<div class="border-b border-gray-200 dark:border-gray-700 pb-8">
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Preferences</h2>
-					<!-- Preferred Language -->
-					<div class="mb-6">
-						if user != nil {
-							@SelectInput("preferred_language", "Preferred Language", LanguageOptions(), &user.PreferredLanguage, true, "Your preferred language for interface and communications")
-						} else {
-							@SelectInput("preferred_language", "Preferred Language", LanguageOptions(), func() *string { s := "en-US"; return &s }(), true, "Your preferred language for interface and communications")
-						}
-					</div>
-				</div>
-				<!-- Section 4: Permissions -->
-				<div class="pb-8 dark:text-gray-300">
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Permissions</h2>
-					<!-- Administrator Privileges -->
-					<div class="mb-6">
-						<label class="flex items-center cursor-pointer">
-							<input
-								type="checkbox"
-								name="is_admin"
-								if user != nil && user.IsAdmin {
-									checked
-								}
-								class="w-4 h-4 text-indigo-600 dark:text-indigo-400 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 cursor-pointer"
-							/>
-							<span class="ml-3 text-sm font-medium text-gray-700 dark:text-gray-300">Administrator Privileges</span>
-							<p class="text-xs text-gray-500 dark:text-gray-400 ml-auto">Grant administrative access to manage the system</p>
-						</label>
-					</div>
-				</div>
-				<!-- Form Actions -->
-				<div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
-					<button
-						type="button"
-						onclick="window.history.back()"
-						class="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-800 dark:focus:ring-indigo-400"
-					>
-						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-						</svg>
-						Cancel
-					</button>
-					<button
-						type="submit"
-						class="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-md hover:shadow-lg dark:focus:ring-offset-gray-800 dark:focus:ring-indigo-400"
-					>
-						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-						</svg>
-						if user == nil || user.ID == "" {
-							Create User
-						} else {
-							Save Configuration
-						}
-					</button>
-				</div>
-			</form>
+			</button>
+		</div>
+	</form>
 }
 
 // ========== Helper Types and Functions ==========

@@ -18,6 +18,8 @@ import (
 	"github.com/lescuer97/nostr-oicd/utils"
 	"github.com/lescuer97/nostr-oicd/vertex"
 	"github.com/lescuer97/nostr-oicd/web/templates"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
+	"github.com/zitadel/oidc/v3/pkg/op"
 )
 
 var decoder = form.NewDecoder()
@@ -121,6 +123,19 @@ func (s *adminHandler) oidcCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *adminHandler) clientFormFragmentHandler(w http.ResponseWriter, r *http.Request) {
+	preset := r.URL.Query().Get("preset")
+	if preset == string(templates.CashuMint) {
+		client := templates.ClientFormData{
+			ClientID:        "cashu-client",
+			RedirectURIs:    []string{"http://localhost:33388/callback"},
+			ApplicationType: int(op.ApplicationTypeUserAgent),
+			ResponseTypes:   []string{"code", "id_token", "token"},
+			GrantTypes:      []string{string(oidc.GrantTypeCode), string(oidc.GrantTypeRefreshToken), string(oidc.GrantTypeDeviceCode)},
+			AccessTokenType: int(op.AccessTokenTypeJWT),
+		}
+		templates.ClientFormInner(&client, true).Render(r.Context(), w)
+		return
+	}
 	id := r.URL.Query().Get("id")
 	if id == "" {
 		templates.ClientForm(nil).Render(r.Context(), w)
@@ -185,6 +200,7 @@ func (s *adminHandler) addClient(w http.ResponseWriter, r *http.Request) {
 			Msg:  "Could not add client",
 			Type: notificationTypeError,
 		}, r, w)
+		return
 
 	}
 

@@ -619,7 +619,6 @@ func (s *Storage) GetClientByClientID(ctx context.Context, clientID string) (op.
 		return nil, fmt.Errorf("s.db.SearchClientByID(tx, %s). %w", clientID, err)
 	}
 
-
 	err = tx.Commit()
 	if err != nil {
 		return nil, fmt.Errorf("tx.Commit(). %w", err)
@@ -1226,6 +1225,19 @@ func (s *Storage) AddClient(ctx context.Context, client Client) error {
 	}
 	defer tx.Rollback()
 
+	used_client, err := s.db.SearchClientByID(tx, client.id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+		} else {
+			return fmt.Errorf("could not search client: %w", err)
+		}
+	}
+	fmt.Printf("\n used_client: %+v", *used_client)
+	fmt.Printf("\n client: %+v", client)
+	if used_client.id == client.id {
+		return fmt.Errorf("client already exists")
+	}
+
 	clientSecret, err := utils.GenerateRandomKey()
 	if err != nil {
 		return fmt.Errorf("utils.GenerateRandomKey(). %w", err)
@@ -1546,6 +1558,17 @@ func (s *Storage) AddUser(ctx context.Context, user User) error {
 		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
 	}
 	defer tx.Rollback()
+
+	user_used, err := s.db.SearchUserByNpub(tx, user.Npub)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+		} else {
+			return fmt.Errorf("could not search user: %w", err)
+		}
+	}
+	if user_used.ID == user.ID {
+		return fmt.Errorf("user already exists")
+	}
 
 	err = s.db.AddUser(tx, &user)
 	if err != nil {
