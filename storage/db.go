@@ -612,8 +612,6 @@ func (s *storageDB) AddToken(tx *sql.Tx, token *Token) error {
 		return fmt.Errorf("json.Marshal(token.Scopes): %w", err)
 	}
 
-	fmt.Printf("\n token: %+v \n", *token)
-
 	query := `
 		INSERT INTO tokens (id, application_id, subject, refresh_token_id, audience, expiration, scopes)
 		VALUES (?, ?, ?, ?, ?, ?, ?)`
