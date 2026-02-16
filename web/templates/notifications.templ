@@ -6,7 +6,13 @@ type NotifInfo struct {
 }
 
 templ Notification(notifInfo NotifInfo) {
-	<div id="snackbar" remove-me="5s" class={ notifInfo.Type }>
+	<div id="notifications" hx-ext="remove-me" hx-swap-oob="true">
+		@snackbar(notifInfo)
+	</div>
+}
+
+templ snackbar(notifInfo NotifInfo) {
+	<div id="snackbar" remove-me="3s" class={ notifInfo.Type }>
 		<span>{ notifInfo.Msg }</span>
 	</div>
 }

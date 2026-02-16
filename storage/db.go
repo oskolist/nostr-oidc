@@ -1152,19 +1152,21 @@ func (s *storageDB) SaveConfig(tx *sql.Tx, config *Configuration) error {
 
 	// Validate the configuration struct
 	if err := validate.Struct(config); err != nil {
-		return fmt.Errorf("validation failed: %w", err)
+		return fmt.Errorf("configuration validation failed %w", err)
 	}
 
 	query := `
-		INSERT INTO configuration (id, max_clients, max_users, last_updated, registration_type, nsec, encryption_key)
-		VALUES (1, ?, ?, ?, ?, ?, ?)
+		INSERT INTO configuration (id, max_clients, max_users, last_updated, registration_type, nsec, encryption_key, vertex_range_active, vertex_range)
+		VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			max_clients = excluded.max_clients,
 			max_users = excluded.max_users,
 			last_updated = excluded.last_updated,
 			registration_type = excluded.registration_type,
 			nsec = excluded.nsec,
-			encryption_key = excluded.encryption_key`
+			encryption_key = excluded.encryption_key,
+			vertex_range_active = excluded.vertex_range_active,
+			vertex_range = excluded.vertex_range`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {
@@ -1180,7 +1182,15 @@ func (s *storageDB) SaveConfig(tx *sql.Tx, config *Configuration) error {
 		nsecValue = nil
 	}
 
-	_, err = stmt.Exec(config.MaxClients, config.MaxUsers, config.LastUpdated, config.RegistrationType, nsecValue, config.EncryptionKey)
+	// Handle vertex_range as optional - pass nil if nil
+	var vertexRangeValue interface{}
+	if config.VertexRange != nil {
+		vertexRangeValue = int64(*config.VertexRange)
+	} else {
+		vertexRangeValue = nil
+	}
+
+	_, err = stmt.Exec(config.MaxClients, config.MaxUsers, config.LastUpdated, config.RegistrationType, nsecValue, config.EncryptionKey, config.VertexRangeActive, vertexRangeValue)
 	if err != nil {
 		return fmt.Errorf("stmt.Exec(SaveConfig): %w", err)
 	}
@@ -1193,7 +1203,7 @@ func (s *storageDB) GetConfig(tx *sql.Tx) (*Configuration, error) {
 		panic("tx cannot be nil")
 	}
 
-	query := `SELECT max_clients, max_users, last_updated, registration_type, nsec, encryption_key FROM configuration WHERE id = 1`
+	query := `SELECT max_clients, max_users, last_updated, registration_type, nsec, encryption_key, vertex_range_active, vertex_range FROM configuration WHERE id = 1`
 
 	stmt, err := tx.Prepare(query)
 	if err != nil {

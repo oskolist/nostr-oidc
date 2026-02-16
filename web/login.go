@@ -186,11 +186,7 @@ type signupHandler struct {
 
 // writeHtmlNotification sends a notification template as HTMX response
 func writeHtmlNotification(info templates.NotifInfo, r *http.Request, w http.ResponseWriter) {
-	w.Header().Add("HX-Retarget", "#notifications")
-	w.Header().Add("HX-Reswap", "innerHTML")
-	// if info.Type == notificationTypeError {
-	// 	w.WriteHeader(400)
-	// }
+	// OOB swap is handled by hx-swap-oob attribute in the template
 	templates.Notification(info).Render(r.Context(), w)
 }
 
@@ -351,7 +347,7 @@ func (s *signupHandler) processSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valid, err := s.vertex.NpubHasEnoughReputation(r.Context(), pubkey)
+	valid, err := s.vertex.NpubHasEnoughReputation(r.Context(), pubkey, config.VertexRangeActive, config.VertexRange)
 	if err != nil {
 		if errors.Is(err, vertex.RelayError) {
 			slog.Error("There was a problem with vertex", slog.String("type", "vertex"), slog.Any("error", err))

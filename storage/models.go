@@ -315,23 +315,32 @@ type deviceAuthorizationEntry struct {
 
 // Configuration represents the application's global settings
 type Configuration struct {
-	MaxClients       uint64 `form:"max_clients" validate:"gte=0"`
-	MaxUsers         uint64 `form:"max_users" validate:"gte=0"`
-	LastUpdated      uint64 `validate:"gte=0"`
-	RegistrationType string `form:"registration_type" validate:"oneof=open manual"`
-	Nsec             []byte `form:"nsec"`
-	EncryptionKey    []byte `validate:"len=32"`
+	MaxClients        uint64  `form:"max_clients" validate:"gte=0"`
+	MaxUsers          uint64  `form:"max_users" validate:"gte=0"`
+	LastUpdated       uint64  `validate:"gte=0"`
+	RegistrationType  string  `form:"registration_type" validate:"oneof=open manual"`
+	Nsec              []byte  `form:"nsec"`
+	EncryptionKey     []byte  `validate:"len=32"`
+	VertexRangeActive bool    `form:"vertex_range_active"`
+	VertexRange       *uint64 `form:"vertex_range"`
 }
 
 func (c *Configuration) ScanRow(row interface{ Scan(...interface{}) error }) error {
 	var nsec sql.Null[[]byte]
-	if err := row.Scan(&c.MaxClients, &c.MaxUsers, &c.LastUpdated, &c.RegistrationType, &nsec, &c.EncryptionKey); err != nil {
+	var vertexRange sql.Null[int64]
+	if err := row.Scan(&c.MaxClients, &c.MaxUsers, &c.LastUpdated, &c.RegistrationType, &nsec, &c.EncryptionKey, &c.VertexRangeActive, &vertexRange); err != nil {
 		return err
 	}
 	if nsec.Valid {
 		c.Nsec = nsec.V
 	} else {
 		c.Nsec = nil
+	}
+	if vertexRange.Valid {
+		val := uint64(vertexRange.V)
+		c.VertexRange = &val
+	} else {
+		c.VertexRange = nil
 	}
 	return nil
 }

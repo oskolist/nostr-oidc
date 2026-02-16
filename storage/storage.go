@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"reflect"
 	"time"
 
@@ -1490,16 +1491,8 @@ func (s *Storage) AddConfiguration(ctx context.Context, config *Configuration) e
 }
 
 // UpdateConfiguration updates the application configuration in the database
-func (s *Storage) UpdateConfiguration(ctx context.Context, config *Configuration) error {
-	if config == nil {
-		return fmt.Errorf("configuration cannot be nil")
-	}
-
-	// Validate the configuration before updating
-	if err := validateConfiguration(config); err != nil {
-		return fmt.Errorf("configuration validation failed: %w", err)
-	}
-
+// It takes individual field values and merges them with the existing configuration
+func (s *Storage) UpdateConfiguration(ctx context.Context, maxClients uint64, maxUsers uint64, registrationType string, vertexNsec []byte, vertexRangeActive bool, vertexRange *uint64) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("s.db.BeginTx(ctx). %w", err)
@@ -1511,20 +1504,34 @@ func (s *Storage) UpdateConfiguration(ctx context.Context, config *Configuration
 		return fmt.Errorf("s.db.GetConfig(tx). %w", err)
 	}
 
-	// INFO: if the fingerprint is different it means that the vertex server changed its nsec
-	if !reflect.DeepEqual(config.Nsec, existingConfig.Nsec) {
-		if config.Nsec != nil {
-			fingerPrint := sha256.Sum256(config.Nsec)
+	// Apply form values (always overwrite with provided values)
+	existingConfig.MaxClients = maxClients
+	existingConfig.MaxUsers = maxUsers
+	existingConfig.RegistrationType = registrationType
+	existingConfig.VertexRangeActive = vertexRangeActive
+	existingConfig.VertexRange = vertexRange
 
-			err := libsecret.SetSecret(libsecret.VertexNsec, config.Nsec)
+	// Handle nsec separately - only update if provided (not nil)
+	if vertexNsec != nil {
+		// INFO: if the fingerprint is different it means that the vertex server changed its nsec
+		if !reflect.DeepEqual(vertexNsec, existingConfig.Nsec) {
+			fingerPrint := sha256.Sum256(vertexNsec)
+
+			slog.Debug("Adding or changing the libsecret vertex nsec")
+			err := libsecret.SetSecret(libsecret.VertexNsec, vertexNsec)
 			if err != nil {
-				return fmt.Errorf("libsecret.SetSecret(libsecret.VertexNsec, config.Nsec). %w", err)
+				return fmt.Errorf("libsecret.SetSecret(libsecret.VertexNsec, vertexNsec). %w", err)
 			}
-			config.Nsec = fingerPrint[:]
+			existingConfig.Nsec = fingerPrint[:]
 		}
 	}
 
-	err = s.db.SaveConfig(tx, config)
+	// Validate the merged configuration
+	if err := validateConfiguration(existingConfig); err != nil {
+		return fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	err = s.db.SaveConfig(tx, existingConfig)
 	if err != nil {
 		return fmt.Errorf("s.db.SaveConfig(tx, config). %w", err)
 	}

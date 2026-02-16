@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"strconv"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -55,9 +57,12 @@ func (v *VertexChecker) getNsecFromStore() ([]byte, error) {
 	return nsecBytes, nil
 }
 
-func (v *VertexChecker) NpubHasEnoughReputation(ctx context.Context, npub *btcec.PublicKey) (bool, error) {
+func (v *VertexChecker) NpubHasEnoughReputation(ctx context.Context, npub *btcec.PublicKey, vertexRange bool, rangeValue *uint64) (bool, error) {
 	if v.relay == nil {
 		return false, fmt.Errorf("VERTEX Relay connection is not spinned up at the moment")
+	}
+	if vertexRange && rangeValue == nil {
+		return false, fmt.Errorf("Vertex range setup but no range value set")
 	}
 	if !v.relay.IsConnected() {
 		err := v.relay.Connect(context.Background())
@@ -115,6 +120,15 @@ func (v *VertexChecker) NpubHasEnoughReputation(ctx context.Context, npub *btcec
 	if response.Kind == 7000 {
 		return false, fmt.Errorf("%w, event: %s", RelayError, response.String())
 	}
+	nodesTag := response.Tags.Find("nodes")
+	if len(nodesTag) < 2 {
+		return false, fmt.Errorf("no nodes tag available")
+	}
+
+	nodesValue, err := strconv.ParseFloat(nodesTag[1], 64)
+	if err != nil {
+		return false, fmt.Errorf("Node value is not a floating point")
+	}
 
 	var vertexEvents []VertexResult
 	err = json.Unmarshal([]byte(response.Content), &vertexEvents)
@@ -126,5 +140,19 @@ func (v *VertexChecker) NpubHasEnoughReputation(ctx context.Context, npub *btcec
 		return false, errors.Join(RelayError, fmt.Errorf("Vertex context are empty"))
 	}
 
+	if vertexRange {
+		if *rangeValue == 0 || *rangeValue > 100 {
+			return false, fmt.Errorf("range value must be between 1 and 100")
+		}
+		percentage := float64(*rangeValue) / 100
+		threshold := pagerankPercentile(percentage, nodesValue)
+		return vertexEvents[0].Rank >= threshold, nil
+	}
+
 	return vertexEvents[0].Rank >= 0.000015, nil
+}
+
+func pagerankPercentile(percentage float64, nodes float64) float64 {
+	exponent := 0.76
+	return (1 - exponent) * math.Pow(percentage, -exponent) * (1 / nodes)
 }

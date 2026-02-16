@@ -9,7 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"time"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/form/v4"
@@ -34,7 +34,7 @@ type administration interface {
 
 	// New methods for configuration management
 	GetConfiguration(ctx context.Context) (*storage.Configuration, error)
-	UpdateConfiguration(ctx context.Context, config *storage.Configuration) error
+	UpdateConfiguration(ctx context.Context, maxClients uint64, maxUsers uint64, registrationType string, vertexNsec []byte, vertexRangeActive bool, vertexRange *uint64) error
 
 	NsecIsRegistered(ctx context.Context) (bool, error)
 
@@ -64,6 +64,8 @@ func NewAdminHandler(server *Server) chi.Router {
 	router.Get("/client/{id}", s.editClientFormById)
 
 	router.Get("/configuration", s.configuration)
+
+	router.Post("/vertex_range", s.vertexRangeCheck)
 	// --- Protected Routes Group ---
 	// All routes mounted within this group will have the AuthMiddleware applied.
 	router.Group(func(r chi.Router) {
@@ -86,6 +88,8 @@ func NewAdminHandler(server *Server) chi.Router {
 		r.Get("/users", s.usersList)
 
 		r.Get("/admin_users", s.adminUsersList)
+
+		r.Post("/vertex-access", s.vertextAccessPost)
 	})
 
 	return router
@@ -506,10 +510,12 @@ func (s *adminHandler) configurationFormFragmentHandler(w http.ResponseWriter, r
 	}
 
 	tmplConfig := templates.ConfigurationForm{
-		MaxClients:       cfg.MaxClients,
-		MaxUsers:         cfg.MaxUsers,
-		LastUpdated:      cfg.LastUpdated,
-		RegistrationType: cfg.RegistrationType,
+		MaxClients:        cfg.MaxClients,
+		MaxUsers:          cfg.MaxUsers,
+		LastUpdated:       cfg.LastUpdated,
+		RegistrationType:  cfg.RegistrationType,
+		VertexRangeActive: cfg.VertexRangeActive,
+		VertexRange:       cfg.VertexRange,
 	}
 
 	templates.AdminConfigurationForm(tmplConfig, nsecRegistered).Render(r.Context(), w)
@@ -517,6 +523,31 @@ func (s *adminHandler) configurationFormFragmentHandler(w http.ResponseWriter, r
 
 func (s *adminHandler) configuration(w http.ResponseWriter, r *http.Request) {
 	templates.AdminConfigurationPage().Render(r.Context(), w)
+}
+func (s *adminHandler) vertexRangeCheck(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		slog.Warn("could not parse form data", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "There was a problem configuring the form",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+	active := r.PostFormValue("vertex_range_active") == "on"
+	rangeStrHidden := r.PostFormValue("vertex_range_hidden")
+	rangeStr := r.PostFormValue("vertex_range")
+	if rangeStr != "" && rangeStrHidden != rangeStr {
+		rangeStrHidden = rangeStr
+	}
+
+	var rangeVal *uint64
+	if rangeStrHidden != "" {
+		if parsed, err := strconv.ParseUint(rangeStrHidden, 10, 64); err == nil {
+			rangeVal = &parsed
+		}
+	}
+	templates.VertexAreaRange(active, rangeVal).Render(r.Context(), w)
 }
 
 func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Request) {
@@ -565,37 +596,18 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 		s.server.Vertex = vtx
 	}
 
-	nsecRegistered, err := s.server.Storage.NsecIsRegistered(r.Context())
-	if err != nil {
-		slog.Error("failed to check if nsec is registered", slog.Any("error", err))
-		// Default to an empty config if not found, to avoid nil pointer dereference
-		// In a real app, you might want to create a default config here if not found
-		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
-		return
-	}
+	// s.server.Storage.NsecIsRegistered(r.Context())
 
-	if inputConfig.RegistrationType == "open" && (emptyNsecField || !nsecRegistered) {
+	if inputConfig.VertexRangeActive && inputConfig.VertexRange == nil {
 		writeHtmlNotification(templates.NotifInfo{
-			Msg:  "You don't have a valid nsec. You need one for open registration type",
+			Msg:  "Vertex range cannot be empty if the Vertex Range is active",
 			Type: notificationTypeError,
 		}, r, w)
 		return
 	}
 
-	config, err := s.server.Storage.GetConfiguration(r.Context())
-	if err != nil {
-		slog.Error("failed to get configuration", slog.Any("error", err))
-		// Default to an empty config if not found, to avoid nil pointer dereference
-		// In a real app, you might want to create a default config here if not found
-		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
-		return
-	}
-
-	// Update the LastUpdated field
-	// INFO: pass the values from the form to the config
-	transformConfigurationFormForm(inputConfig, config)
-
-	// INFO: Add check for vertex nsec
+	// Convert nsec string to bytes if provided
+	var vertexNsecBytes []byte
 	if !emptyNsecField {
 		privKey, err := utils.GetBtcPrivateKeyFromNsec(inputConfig.Nsec)
 		if err != nil {
@@ -605,10 +617,10 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 			}, r, w)
 			return
 		}
-		config.Nsec = privKey.Serialize()
+		vertexNsecBytes = privKey.Serialize()
 	}
 
-	if err := s.server.Storage.UpdateConfiguration(r.Context(), config); err != nil {
+	if err := s.server.Storage.UpdateConfiguration(r.Context(), inputConfig.MaxClients, inputConfig.MaxUsers, inputConfig.RegistrationType, vertexNsecBytes, inputConfig.VertexRangeActive, inputConfig.VertexRange); err != nil {
 		slog.Error("failed to update configuration", slog.Any("error", err))
 		writeHtmlNotification(templates.NotifInfo{
 			Msg:  "Could not update configuration",
@@ -617,15 +629,103 @@ func (s *adminHandler) updateConfiguration(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	nsecRegistered, err := s.server.Storage.NsecIsRegistered(r.Context())
+	if err != nil {
+		slog.Warn("Failed to check for nsec after saving it", slog.Any("error", err))
+		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
+		return
+	}
+
+	config, err := s.server.Storage.GetConfiguration(r.Context())
+	if err != nil {
+		slog.Error("failed to get configuration", slog.Any("error", err))
+		templates.NotFoundPage("Could not check the configuration correctly").Render(r.Context(), w)
+		return
+	}
+
+	tmplConfig := templates.ConfigurationForm{
+		MaxClients:        config.MaxClients,
+		MaxUsers:          config.MaxUsers,
+		LastUpdated:       config.LastUpdated,
+		RegistrationType:  config.RegistrationType,
+		VertexRangeActive: config.VertexRangeActive,
+		VertexRange:       config.VertexRange,
+	}
+
+	templates.AdminConfigurationForm(tmplConfig, nsecRegistered).Render(r.Context(), w)
 	writeHtmlNotification(templates.NotifInfo{
 		Msg:  "Configuration updated successfully",
 		Type: notificationTypeSuccess,
 	}, r, w)
 }
 
-func transformConfigurationFormForm(form templates.ConfigurationForm, config *storage.Configuration) {
-	config.LastUpdated = uint64(time.Now().Unix())
-	config.MaxClients = form.MaxClients
-	config.MaxUsers = form.MaxUsers
-	config.RegistrationType = form.RegistrationType
+func (s *adminHandler) vertextAccessPost(w http.ResponseWriter, r *http.Request) {
+	// For now, return empty list - will be populated from storage later
+	err := r.ParseForm()
+	if err != nil {
+		slog.Warn("could not parse form data", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "There was a problem getting the npub value",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+	npub := r.PostFormValue("npub")
+	if npub == "" {
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "could not parse the npub you gave me",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	pubkey, err := templates.StringToNpub(npub)
+	if err != nil {
+		slog.Debug("string could not be parsed to public key", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "The npub you provided could not be parsed",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	if s.server.Vertex == nil {
+		slog.Error("Vertex is nil and it should not be at this moment")
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Vertex server is inactive. it should not be",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	config, err := s.server.Storage.GetConfiguration(r.Context())
+	if err != nil {
+		slog.Debug("coudld not get configuration", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "The npub you provided could not be parsed",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+
+	valid, err := s.server.Vertex.NpubHasEnoughReputation(r.Context(), pubkey, config.VertexRangeActive, config.VertexRange)
+	if err != nil {
+		slog.Warn("Could not validate npub from vertex", slog.Any("error", err))
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "Could not validate given npub",
+			Type: notificationTypeError,
+		}, r, w)
+		return
+	}
+	if valid {
+		writeHtmlNotification(templates.NotifInfo{
+			Msg:  "NPUB is inside the Web Of Trust",
+			Type: notificationTypeSuccess,
+		}, r, w)
+		return
+	}
+	writeHtmlNotification(templates.NotifInfo{
+		Msg:  "NPUB is not inside the Web Of Trust",
+		Type: notificationTypeError,
+	}, r, w)
 }
