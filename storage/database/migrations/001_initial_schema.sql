@@ -81,7 +81,9 @@ CREATE TABLE configuration (
     last_updated INTEGER NOT NULL,
     registration_type TEXT NOT NULL CHECK (registration_type IN ('open', 'paid', 'manual')),
     nsec BLOB,
-    encryption_key BLOB NOT NULL
+    encryption_key BLOB NOT NULL,
+    vertex_range_active BOOLEAN NOT NULL DEFAULT 0,
+    vertex_range INTEGER
 );
 
 -- Indexes

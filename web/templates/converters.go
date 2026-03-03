@@ -216,7 +216,7 @@ func FormDataToStorageUser(data *UserFormData) (*storage.User, error) {
 	}
 
 	// Parse Nostr public key
-	npub, err := stringToNpub(data.Npub)
+	npub, err := StringToNpub(data.Npub)
 	if err != nil {
 		return nil, fmt.Errorf("invalid nostr public key: %w", err)
 	}
@@ -257,11 +257,11 @@ func npubToString(npub *btcec.PublicKey) string {
 	return npubStr
 }
 
-// stringToNpub decodes a NIP19-encoded npub string (or hex) to btcec.PublicKey.
+// StringToNpub decodes a NIP19-encoded npub string (or hex) to btcec.PublicKey.
 // Accepts both NIP19 bech32 format (npub1...) and raw hex strings.
 // Returns nil if the string is empty (optional field).
 // Returns an error if the format is invalid or the key cannot be parsed.
-func stringToNpub(npubStr string) (*btcec.PublicKey, error) {
+func StringToNpub(npubStr string) (*btcec.PublicKey, error) {
 	if npubStr == "" {
 		return nil, nil
 	}
