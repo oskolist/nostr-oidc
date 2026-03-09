@@ -29,9 +29,11 @@ type Storage interface {
 }
 
 type Server struct {
-	Storage      Storage
-	Vertex       *vertex.VertexChecker
-	OIDCProvider op.OpenIDProvider
+	Storage           Storage
+	Vertex            *vertex.VertexChecker
+	OIDCProvider      op.OpenIDProvider
+	OIDCIssuer        string
+	OIDCAllowInsecure bool
 }
 
 // simple counter for request IDs
@@ -88,11 +90,10 @@ func SetupServer(server *Server, extraOptions ...op.Option) chi.Router {
 		server.Storage,
 		func(insecure bool) (op.IssuerFromRequest, error) {
 			return func(r *http.Request) string {
-				// issuer := r.Header.Get("issuer")
-				// log.Printf("\n issuer: %+v", issuer)
-				return "http://localhost:8082"
+				return server.OIDCIssuer
 			}, nil
 		},
+		server.OIDCAllowInsecure,
 		[32]byte(config.EncryptionKey),
 		extraOptions...,
 	)
@@ -142,12 +143,12 @@ func SetupServer(server *Server, extraOptions ...op.Option) chi.Router {
 	return router
 }
 
-// newOP will create an OpenID Provider for localhost on a specified port
-// and a predefined default logout uri
-// it will enable all options (see descriptions)
+// newOP creates an OpenID Provider with a configured issuer,
+// predefined default logout uri, and enabled protocol options.
 func newOP(
 	storage op.Storage,
 	issuer func(insecure bool) (op.IssuerFromRequest, error),
+	allowInsecure bool,
 	key [32]byte, // encryption key
 	extraOptions ...op.Option,
 ) (op.OpenIDProvider, error) {
@@ -185,18 +186,17 @@ func newOP(
 			UserCode:     op.UserCodeBase20,
 		},
 	}
-	provider, err := op.NewProvider(config, storage,
-		issuer,
-		append([]op.Option{
-			// op.Is
-			//we must explicitly allow the use of the http issuer
-			op.WithAllowInsecure(),
-			// as an example on how to customize an endpoint this will change the authorization_endpoint from /authorize to /auth
-			// op.WithCustomAuthEndpoint(op.NewEndpoint("auth")),
-			// Pass our logger to the OP
-			op.WithLogger(slog.Default().WithGroup("op")),
-		}, extraOptions...)...,
-	)
+	options := []op.Option{
+		// as an example on how to customize an endpoint this will change the authorization_endpoint from /authorize to /auth
+		// op.WithCustomAuthEndpoint(op.NewEndpoint("auth")),
+		// Pass our logger to the OP
+		op.WithLogger(slog.Default().WithGroup("op")),
+	}
+	if allowInsecure {
+		options = append(options, op.WithAllowInsecure())
+	}
+
+	provider, err := op.NewProvider(config, storage, issuer, append(options, extraOptions...)...)
 	if err != nil {
 		return nil, err
 	}

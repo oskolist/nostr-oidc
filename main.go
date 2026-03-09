@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -27,7 +29,16 @@ import (
 	"golang.org/x/text/language"
 )
 
-const ADMIN_USER_NPUB = "ADMIN_USER_NPUB"
+const (
+	ADMIN_USER_NPUB      = "ADMIN_USER_NPUB"
+	OIDCIssuerEnv        = "OIDC_ISSUER"
+	OIDCAllowInsecureEnv = "OIDC_ALLOW_INSECURE"
+)
+
+type oidcEnvConfig struct {
+	Issuer        string
+	AllowInsecure bool
+}
 
 func main() {
 	// Load config from environment
@@ -72,8 +83,15 @@ func main() {
 		log.Fatalf("storage.GetConfigurationWithNsec(context.Background()). %v", err)
 	}
 
+	oidcConfig, err := parseOIDCEnvConfig()
+	if err != nil {
+		log.Fatalf("parseOIDCEnvConfig(). %v", err)
+	}
+
 	server := web.Server{
-		Storage: &storage,
+		Storage:           &storage,
+		OIDCIssuer:        oidcConfig.Issuer,
+		OIDCAllowInsecure: oidcConfig.AllowInsecure,
 	}
 
 	if config.RegistrationType == "open" {
@@ -119,6 +137,28 @@ func main() {
 	}
 
 	log.Println("server exiting")
+}
+
+func parseOIDCEnvConfig() (oidcEnvConfig, error) {
+	issuer := strings.TrimSpace(os.Getenv(OIDCIssuerEnv))
+	if issuer == "" {
+		return oidcEnvConfig{}, fmt.Errorf("%s is required", OIDCIssuerEnv)
+	}
+
+	allowInsecure := false
+	allowInsecureValue, hasAllowInsecure := os.LookupEnv(OIDCAllowInsecureEnv)
+	if hasAllowInsecure {
+		parsedAllowInsecure, err := strconv.ParseBool(strings.TrimSpace(allowInsecureValue))
+		if err != nil {
+			return oidcEnvConfig{}, fmt.Errorf("%s must be a valid boolean. got %q", OIDCAllowInsecureEnv, allowInsecureValue)
+		}
+		allowInsecure = parsedAllowInsecure
+	}
+
+	return oidcEnvConfig{
+		Issuer:        issuer,
+		AllowInsecure: allowInsecure,
+	}, nil
 }
 
 // ensureConfiguration checks if a configuration exists in the database.

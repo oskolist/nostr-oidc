@@ -21,6 +21,11 @@ queried later.
 The first time you run the program you will need to run it with the `ADMIN_USER_NPUB` enviroment variable. The system
 will create and administrative user to be able to login to the user dashboard.
 
+OIDC settings are configured with environment variables:
+
+- `OIDC_ISSUER` (required): issuer URL used by discovery and tokens (example: `http://localhost:8082`)
+- `OIDC_ALLOW_INSECURE` (optional, defaults to `false`): set to `true` only for local HTTP development
+
 You will be able to login to it in the `/admin/login` endpoint. After success it will redirect to the dashboard.
 
 ## Todos
