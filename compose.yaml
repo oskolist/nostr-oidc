@@ -1,8 +1,9 @@
 services:
   nostr-oidc:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    #build:
+    #  context: .
+    #  dockerfile: Containerfile
+    image: ghcr.io/lescuer97/nostr-oidc:latest
     container_name: nostr-oidc
     ports:
       - "8082:8082"
